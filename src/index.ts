@@ -14,6 +14,7 @@ import {
 } from "./detectors/index.js";
 import { Store } from "./store/index.js";
 import { Executor } from "./executor/index.js";
+import { TelegramAlert } from "./alerts/telegram.js";
 
 interface ChainConfig {
   chain: Chain;
@@ -50,6 +51,9 @@ async function main() {
   const executor = new Executor();
   console.log("");
 
+  const tg = new TelegramAlert();
+  console.log(`Telegram: ${tg.enabled ? "enabled" : "disabled (set TG_BOT_TOKEN + TG_CHAT_ID)"}\n`);
+
   let totalScanned = 0;
   let totalFlagged = 0;
   let totalExecuted = 0;
@@ -69,6 +73,7 @@ async function main() {
       if (result.score >= SCORE_THRESHOLD) {
         totalFlagged++;
         console.log(formatResult(result));
+        tg.alertFinding(result);
       }
 
       if (result.score >= EXECUTE_THRESHOLD && result.findings.some(f => f.severity === "critical")) {
@@ -80,6 +85,8 @@ async function main() {
             store.saveExecution(contractId, exec);
           }
         }
+
+        tg.alertExecution(result, execResults);
       }
     };
   }
