@@ -7,3 +7,4 @@ export { proxyDetector } from "./proxy-detector.js";
 export { initializerDetector } from "./initializer-detector.js";
 export { openWithdrawalDetector } from "./open-withdrawal-detector.js";
 export { ownershipDetector } from "./ownership-detector.js";
+export { valueDetector } from "./value-detector.js";

@@ -9,6 +9,7 @@ import {
   initializerDetector,
   openWithdrawalDetector,
   ownershipDetector,
+  valueDetector,
 } from "./detectors/index.js";
 import { Store } from "./store/index.js";
 import { Executor } from "./executor/index.js";
@@ -38,6 +39,7 @@ async function main() {
   // Build the detector pipeline
   const pipeline = new Pipeline();
   console.log("Loading detectors:");
+  pipeline.register(valueDetector);
   pipeline.register(proxyDetector);
   pipeline.register(initializerDetector);
   pipeline.register(openWithdrawalDetector);
