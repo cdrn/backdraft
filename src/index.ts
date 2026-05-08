@@ -1,7 +1,8 @@
 import "dotenv/config";
-import { createPublicClient, webSocket, type Chain } from "viem";
+import { createPublicClient, webSocket, type Chain, type PublicClient, type Transport } from "viem";
 import { mainnet, arbitrum, base } from "viem/chains";
-import { DeploymentListener } from "./listener/deployment-listener.js";
+import { DeploymentListener, type DeployedContract } from "./listener/deployment-listener.js";
+import { FactoryListener } from "./listener/factory-listener.js";
 import {
   Pipeline,
   formatResult,
@@ -27,7 +28,7 @@ const CHAINS: ChainConfig[] = [
 ];
 
 const SCORE_THRESHOLD = 30;
-const EXECUTE_THRESHOLD = 50; // only auto-execute on high-confidence findings
+const EXECUTE_THRESHOLD = 50;
 
 async function main() {
   console.log("Sentinel - Contract Deployment Scanner");
@@ -36,7 +37,6 @@ async function main() {
   const store = new Store();
   console.log("Database: sentinel.db\n");
 
-  // Build the detector pipeline
   const pipeline = new Pipeline();
   console.log("Loading detectors:");
   pipeline.register(valueDetector);
@@ -46,7 +46,6 @@ async function main() {
   pipeline.register(ownershipDetector);
   console.log("");
 
-  // Executor
   console.log("Executor:");
   const executor = new Executor();
   console.log("");
@@ -55,27 +54,13 @@ async function main() {
   let totalFlagged = 0;
   let totalExecuted = 0;
 
-  const listeners: DeploymentListener[] = [];
+  const stoppers: (() => void)[] = [];
 
-  for (const { chain, envKey, name } of CHAINS) {
-    const rpcUrl = process.env[envKey];
-    if (!rpcUrl) {
-      console.log(`Skipping ${name} — ${envKey} not set`);
-      continue;
-    }
-
-    const client = createPublicClient({
-      chain,
-      transport: webSocket(rpcUrl),
-    });
-
-    const listener = new DeploymentListener(client, name);
-
-    listener.onDeploy(async (contract) => {
+  function makeHandler(client: PublicClient<Transport, Chain>) {
+    return async (contract: DeployedContract) => {
       const result = await pipeline.run(contract, client);
       totalScanned++;
 
-      // Persist everything that has findings
       let contractId = 0;
       if (result.findings.length > 0) {
         contractId = store.save(result);
@@ -86,31 +71,54 @@ async function main() {
         console.log(formatResult(result));
       }
 
-      // Execute on critical findings
       if (result.score >= EXECUTE_THRESHOLD && result.findings.some(f => f.severity === "critical")) {
         const execResults = await executor.execute(result, client);
         totalExecuted += execResults.length;
 
-        // Persist execution results
         if (contractId > 0) {
           for (const exec of execResults) {
             store.saveExecution(contractId, exec);
           }
         }
       }
-    });
-
-    listeners.push(listener);
+    };
   }
 
-  if (listeners.length === 0) {
+  let hasChains = false;
+
+  for (const { chain, envKey, name } of CHAINS) {
+    const rpcUrl = process.env[envKey];
+    if (!rpcUrl) {
+      console.log(`Skipping ${name} — ${envKey} not set`);
+      continue;
+    }
+    hasChains = true;
+
+    const client = createPublicClient({
+      chain,
+      transport: webSocket(rpcUrl),
+    });
+
+    const handler = makeHandler(client);
+
+    // Direct deployment listener
+    const deployListener = new DeploymentListener(client, name);
+    deployListener.onDeploy(handler);
+    await deployListener.start();
+    stoppers.push(() => deployListener.stop());
+
+    // Factory event listener
+    const factoryListener = new FactoryListener(client, name);
+    factoryListener.onDeploy(handler);
+    await factoryListener.start();
+    stoppers.push(() => factoryListener.stop());
+  }
+
+  if (!hasChains) {
     console.error("No RPC endpoints configured. Copy .env.example to .env and add your keys.");
     process.exit(1);
   }
 
-  await Promise.all(listeners.map((l) => l.start()));
-
-  // Print stats periodically
   setInterval(() => {
     console.log(`\n--- Scanned: ${totalScanned} | Flagged: ${totalFlagged} | Executed: ${totalExecuted} ---\n`);
   }, 60_000);
@@ -123,7 +131,7 @@ async function main() {
       console.table(stats);
     }
     store.close();
-    listeners.forEach((l) => l.stop());
+    stoppers.forEach((stop) => stop());
     process.exit(0);
   });
 }
