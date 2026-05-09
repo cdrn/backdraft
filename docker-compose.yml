@@ -1,0 +1,21 @@
+services:
+  sentinel:
+    image: ghcr.io/cdrn/sentinel:latest
+    container_name: sentinel
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DB_PATH=/app/data/sentinel.db
+    volumes:
+      - sentinel-data:/app/data
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 60 sentinel
+
+volumes:
+  sentinel-data:
