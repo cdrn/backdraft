@@ -1,6 +1,6 @@
 # Backdraft
 
-Real-time contract deployment scanner and MEV searcher. Watches Ethereum, Arbitrum, and Base for newly deployed contracts and token launches, runs them through a modular detection pipeline, and optionally executes profitable actions.
+MEV searcher and contract deployment scanner. Modular pipeline architecture — listeners detect on-chain events, detectors analyze them, executor acts on findings.
 
 ## Architecture
 
@@ -10,24 +10,22 @@ Listeners                    Pipeline                         Output
 Deployment Listener  ──┐    Prescreen (bytecode, 0 RPC)     SQLite DB
   (watches blocks)     ├──► Proxy Detector          ──────► Telegram
 Factory Listener     ──┘    Initializer Detector             Executor
-  (Uniswap events)          Open Withdrawal Detector           ├─ Claim
-                            Ownership Detector                 ├─ Drain
-                            Value Detector                     └─ Snipe
+  (DEX pool events)         Open Withdrawal Detector           ├─ Claim
+Pool Price Monitor          Ownership Detector                 ├─ Snipe
+  (arb opportunities)       Value Detector                     └─ Arb
                             Honeypot Detector
 ```
 
-**Listeners** watch for new contracts via two methods:
-- **Deployment listener** — watches every block for `CREATE` transactions (tx.to === null)
-- **Factory listener** — watches Uniswap V2/V3 factory events for new pool creation
+### Listeners
+- **Deployment listener** — watches blocks for `CREATE` transactions
+- **Factory listener** — watches Uniswap V2/V3 factory events for new pools
+- **Pool price monitor** — monitors cross-DEX price discrepancies (Base)
 
-**Detectors** run in a two-phase pipeline:
-- **Phase 1 (prescreen)** — bytecode-only selector scanning, zero RPC calls
-- **Phase 2 (gated)** — RPC-heavy analysis, only runs if prescreen found something interesting or the contract is a new pool
+### Detectors
+Two-phase pipeline. Phase 1 (prescreen) does zero RPC calls — bytecode-only selector scanning. Phase 2 (gated) runs RPC-heavy analysis only if prescreen found something interesting or the contract is a new pool.
 
-**Executor** acts on critical findings:
-- Claim uninitialized proxies
-- Drain open withdrawal functions
-- Snipe new token launches (with honeypot protection)
+### Executor
+Dry-run by default. Simulates transactions and logs results. Set `EXECUTOR_LIVE=true` to submit real transactions.
 
 ## Setup
 
@@ -47,24 +45,14 @@ All flags default to `true`. Set to `false` in `.env` to disable.
 | Flag | What it controls |
 |------|-----------------|
 | `ENABLE_DEPLOYMENT_LISTENER` | Watch blocks for direct contract deployments |
-| `ENABLE_FACTORY_LISTENER` | Watch Uniswap factory events for new pools |
+| `ENABLE_FACTORY_LISTENER` | Watch DEX factory events for new pools |
 | `ENABLE_VULN_DETECTORS` | Proxy, initializer, withdrawal, ownership detectors |
 | `ENABLE_SNIPER` | Honeypot detection and pool sniping |
 | `ENABLE_EXECUTOR` | Transaction execution (dry-run or live) |
 
-### Cost optimization examples
+### Cost optimization
 
-Only run the pool sniper (lowest RPC usage):
-```
-ENABLE_DEPLOYMENT_LISTENER=false
-ENABLE_VULN_DETECTORS=false
-ENABLE_SNIPER=true
-```
-
-Only monitor, no execution:
-```
-ENABLE_EXECUTOR=false
-```
+Block watching is the dominant RPC cost (~97 CU/s across 3 chains). Arbitrum is the most expensive due to fast block times. To reduce costs, drop chains you don't need and disable the deployment listener to rely only on factory events.
 
 ## Chain Configuration
 
@@ -76,30 +64,6 @@ ARB_RPC_WS=wss://arb-mainnet.g.alchemy.com/v2/YOUR_KEY
 BASE_RPC_WS=wss://base-mainnet.g.alchemy.com/v2/YOUR_KEY
 ```
 
-### RPC cost notes
-
-Block watching is the dominant cost (~97 CU/s across 3 chains). Arbitrum is the most expensive due to fast block times (~4/sec). If costs are a concern, drop Arbitrum first and disable the deployment listener to rely only on factory events.
-
-## Executor
-
-The executor is in **dry-run mode by default**. It simulates transactions and logs results without submitting.
-
-To go live:
-```
-EXECUTOR_PRIVATE_KEY=0xyour_private_key
-EXECUTOR_LIVE=true
-```
-
-## Telegram Alerts
-
-1. Create a bot via @BotFather on Telegram
-2. Get your chat/channel ID
-3. Add to `.env`:
-```
-TG_BOT_TOKEN=your_token
-TG_CHAT_ID=your_chat_id
-```
-
 ## Deployment
 
 Docker Compose with Watchtower for auto-deploy:
@@ -108,7 +72,7 @@ Docker Compose with Watchtower for auto-deploy:
 docker compose up -d
 ```
 
-Watchtower polls ghcr.io every 60 seconds. Push to master triggers CI → builds image → Watchtower pulls and restarts.
+Push to master → CI builds image → Watchtower pulls and restarts automatically.
 
 ## Project Structure
 
@@ -119,7 +83,7 @@ src/
     tokens.ts             Verified token addresses per chain
   listener/
     deployment-listener.ts  Block watching for CREATE txs
-    factory-listener.ts     Uniswap factory event watching
+    factory-listener.ts     DEX factory event watching
   detectors/
     pipeline.ts           Two-phase detector pipeline
     prescreen-detector.ts Bytecode-only prescreen (0 RPC)
@@ -138,4 +102,5 @@ src/
   alerts/
     telegram.ts           Telegram bot alerts
   index.ts                Entry point
+contracts/                Solidity contracts (Foundry)
 ```
