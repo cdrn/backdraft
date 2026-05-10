@@ -3,6 +3,7 @@ export type { PipelineResult } from "./pipeline.js";
 export type { Detector, DetectorContext, Finding, Severity } from "./types.js";
 
 // Detectors
+export { prescreenDetector } from "./prescreen-detector.js";
 export { proxyDetector } from "./proxy-detector.js";
 export { initializerDetector } from "./initializer-detector.js";
 export { openWithdrawalDetector } from "./open-withdrawal-detector.js";

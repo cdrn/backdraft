@@ -6,6 +6,7 @@ import { FactoryListener } from "./listener/factory-listener.js";
 import {
   Pipeline,
   formatResult,
+  prescreenDetector,
   proxyDetector,
   initializerDetector,
   openWithdrawalDetector,
@@ -41,12 +42,15 @@ async function main() {
 
   const pipeline = new Pipeline();
   console.log("Loading detectors:");
-  pipeline.register(valueDetector);
-  pipeline.register(proxyDetector);
-  pipeline.register(initializerDetector);
-  pipeline.register(openWithdrawalDetector);
-  pipeline.register(ownershipDetector);
-  pipeline.register(honeypotDetector);
+  // Phase 1: bytecode-only prescreen (0 RPC calls)
+  pipeline.register(prescreenDetector);
+  // Phase 2: RPC-heavy detectors (gated — only run if prescreen found something or it's a pool)
+  pipeline.register(proxyDetector, true);
+  pipeline.register(initializerDetector, true);
+  pipeline.register(openWithdrawalDetector, true);
+  pipeline.register(ownershipDetector, true);
+  pipeline.register(valueDetector, true);
+  pipeline.register(honeypotDetector, true);
   console.log("");
 
   console.log("Executor:");

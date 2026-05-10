@@ -18,11 +18,21 @@ const SEVERITY_SCORES: Record<Finding["severity"], number> = {
 };
 
 export class Pipeline {
-  private detectors: Detector[] = [];
+  private cheapDetectors: Detector[] = [];
+  private expensiveDetectors: Detector[] = [];
 
-  register(detector: Detector) {
-    this.detectors.push(detector);
-    console.log(`  Registered detector: ${detector.name}`);
+  /**
+   * Register a detector.
+   * @param expensive - If true, only runs when cheap detectors found something
+   *                    or the contract is a new pool. Saves RPC calls.
+   */
+  register(detector: Detector, expensive = false) {
+    if (expensive) {
+      this.expensiveDetectors.push(detector);
+    } else {
+      this.cheapDetectors.push(detector);
+    }
+    console.log(`  Registered detector: ${detector.name}${expensive ? " (gated)" : ""}`);
   }
 
   async run(
@@ -37,11 +47,28 @@ export class Pipeline {
       meta: {},
     };
 
-    for (const detector of this.detectors) {
+    // Phase 1: cheap detectors (bytecode-only, minimal RPC)
+    for (const detector of this.cheapDetectors) {
       try {
         await detector.detect(ctx);
       } catch (err) {
         console.error(`[${detector.name}] Error on ${contract.address}:`, err);
+      }
+    }
+
+    // Phase 2: expensive detectors — only if phase 1 found something
+    // or if this is a factory-created pool (always worth checking)
+    const shouldRunExpensive = ctx.findings.length > 0
+      || ctx.tags.size > 0
+      || contract.poolInfo !== undefined;
+
+    if (shouldRunExpensive) {
+      for (const detector of this.expensiveDetectors) {
+        try {
+          await detector.detect(ctx);
+        } catch (err) {
+          console.error(`[${detector.name}] Error on ${contract.address}:`, err);
+        }
       }
     }
 
