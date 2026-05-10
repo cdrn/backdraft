@@ -31,8 +31,9 @@ MEV searcher and contract scanner on Ethereum and Base. Modular pipeline archite
 
 ## Deployment
 - Push to master → CI builds Docker image → Watchtower on VPS pulls and restarts
-- VPS: DigitalOcean droplet, docker-compose with Watchtower
+- VPS runs docker-compose with Watchtower for auto-deploy
 - Secrets in `.env` on the VPS, never in repo
+- Master killswitch: set `KILLSWITCH=true` in env to halt all activity
 
 ## Active Development
 - Cross-DEX arbitrage on Base (Uniswap V2/V3, Aerodrome, SushiSwap)

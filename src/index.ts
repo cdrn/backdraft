@@ -46,6 +46,14 @@ async function main() {
 
   printFlags();
 
+  if (flags.killswitch) {
+    console.log("KILLSWITCH ACTIVE — no listeners or executors will run.");
+    console.log("Container will stay alive. Unset KILLSWITCH to resume.\n");
+    // Keep the process alive so the container doesn't restart-loop
+    setInterval(() => {}, 1 << 30);
+    return;
+  }
+
   const pipeline = new Pipeline();
   console.log("Loading detectors:");
   pipeline.register(prescreenDetector);

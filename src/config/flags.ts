@@ -4,20 +4,27 @@ function flag(key: string, defaultValue = true): boolean {
   return val === "true" || val === "1";
 }
 
+// Master killswitch — when true, the app starts up but no listeners or
+// executors run. Useful for keeping the container alive while halting
+// all on-chain activity.
+const killswitch = flag("KILLSWITCH", false);
+
 export const flags = {
+  killswitch,
+
   // Listeners
-  deploymentListener: flag("ENABLE_DEPLOYMENT_LISTENER", true),
-  factoryListener: flag("ENABLE_FACTORY_LISTENER", true),
+  deploymentListener: !killswitch && flag("ENABLE_DEPLOYMENT_LISTENER", true),
+  factoryListener: !killswitch && flag("ENABLE_FACTORY_LISTENER", true),
 
   // Detector groups
-  vulnDetectors: flag("ENABLE_VULN_DETECTORS", true),
-  sniper: flag("ENABLE_SNIPER", true),
+  vulnDetectors: !killswitch && flag("ENABLE_VULN_DETECTORS", true),
+  sniper: !killswitch && flag("ENABLE_SNIPER", true),
 
   // Arb
-  arbScanner: flag("ENABLE_ARB_SCANNER", true),
+  arbScanner: !killswitch && flag("ENABLE_ARB_SCANNER", true),
 
   // Execution
-  executor: flag("ENABLE_EXECUTOR", true),
+  executor: !killswitch && flag("ENABLE_EXECUTOR", true),
 };
 
 export function printFlags() {
