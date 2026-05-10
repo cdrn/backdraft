@@ -45,11 +45,9 @@ contract BackdraftArb {
     uint160 internal constant MIN_SQRT_RATIO = 4295128739;
     uint160 internal constant MAX_SQRT_RATIO = 1461446703485210103287273052203988822378723970342;
 
-    // V3 callback data
-    struct V3CallbackData {
-        address tokenIn;
-        address pool;
-    }
+    // Tracks the pool we're currently swapping with — used to validate V3 callbacks.
+    // Prevents spoofed callbacks where an attacker passes their own address as cb.pool.
+    address private _activeV3Pool;
 
     modifier onlyOwner() {
         require(msg.sender == owner, "not owner");
@@ -64,12 +62,6 @@ contract BackdraftArb {
     receive() external payable {}
 
     /// @notice Execute a V2→V2 arbitrage
-    /// @param buyPool Pool to buy from (cheaper)
-    /// @param sellPool Pool to sell on (more expensive)
-    /// @param tokenIn The token we start with (usually WETH)
-    /// @param tokenOut The token we're arbing
-    /// @param amountIn Amount of tokenIn to spend
-    /// @param minProfit Minimum profit in tokenIn, reverts if not met
     function arbV2V2(
         address buyPool,
         address sellPool,
@@ -80,15 +72,13 @@ contract BackdraftArb {
     ) external onlyOwner {
         uint256 balanceBefore = IERC20(tokenIn).balanceOf(address(this));
 
-        // Buy: send tokenIn to buyPool, receive tokenOut
         uint256 buyOutput = _getV2AmountOut(buyPool, tokenIn, tokenOut, amountIn);
         IERC20(tokenIn).transfer(buyPool, amountIn);
-        _v2Swap(buyPool, tokenIn, tokenOut, buyOutput);
+        _v2Swap(buyPool, tokenOut, buyOutput);
 
-        // Sell: send tokenOut to sellPool, receive tokenIn
         uint256 sellOutput = _getV2AmountOut(sellPool, tokenOut, tokenIn, buyOutput);
         IERC20(tokenOut).transfer(sellPool, buyOutput);
-        _v2Swap(sellPool, tokenOut, tokenIn, sellOutput);
+        _v2Swap(sellPool, tokenIn, sellOutput);
 
         uint256 balanceAfter = IERC20(tokenIn).balanceOf(address(this));
         require(balanceAfter >= balanceBefore + minProfit, "not profitable");
@@ -96,8 +86,8 @@ contract BackdraftArb {
 
     /// @notice Execute a V2→V3 arbitrage
     function arbV2V3(
-        address buyPool,   // V2 pool (buy here)
-        address sellPool,  // V3 pool (sell here)
+        address buyPool,
+        address sellPool,
         address tokenIn,
         address tokenOut,
         uint256 amountIn,
@@ -105,12 +95,10 @@ contract BackdraftArb {
     ) external onlyOwner {
         uint256 balanceBefore = IERC20(tokenIn).balanceOf(address(this));
 
-        // Buy on V2
         uint256 buyOutput = _getV2AmountOut(buyPool, tokenIn, tokenOut, amountIn);
         IERC20(tokenIn).transfer(buyPool, amountIn);
-        _v2Swap(buyPool, tokenIn, tokenOut, buyOutput);
+        _v2Swap(buyPool, tokenOut, buyOutput);
 
-        // Sell on V3
         _v3Swap(sellPool, tokenOut, tokenIn, buyOutput);
 
         uint256 balanceAfter = IERC20(tokenIn).balanceOf(address(this));
@@ -119,8 +107,8 @@ contract BackdraftArb {
 
     /// @notice Execute a V3→V2 arbitrage
     function arbV3V2(
-        address buyPool,   // V3 pool (buy here)
-        address sellPool,  // V2 pool (sell here)
+        address buyPool,
+        address sellPool,
         address tokenIn,
         address tokenOut,
         uint256 amountIn,
@@ -128,14 +116,12 @@ contract BackdraftArb {
     ) external onlyOwner {
         uint256 balanceBefore = IERC20(tokenIn).balanceOf(address(this));
 
-        // Buy on V3
         _v3Swap(buyPool, tokenIn, tokenOut, amountIn);
 
-        // Sell on V2
         uint256 tokenOutBalance = IERC20(tokenOut).balanceOf(address(this));
         uint256 sellOutput = _getV2AmountOut(sellPool, tokenOut, tokenIn, tokenOutBalance);
         IERC20(tokenOut).transfer(sellPool, tokenOutBalance);
-        _v2Swap(sellPool, tokenOut, tokenIn, sellOutput);
+        _v2Swap(sellPool, tokenIn, sellOutput);
 
         uint256 balanceAfter = IERC20(tokenIn).balanceOf(address(this));
         require(balanceAfter >= balanceBefore + minProfit, "not profitable");
@@ -152,10 +138,8 @@ contract BackdraftArb {
     ) external onlyOwner {
         uint256 balanceBefore = IERC20(tokenIn).balanceOf(address(this));
 
-        // Buy on V3 pool 1
         _v3Swap(buyPool, tokenIn, tokenOut, amountIn);
 
-        // Sell on V3 pool 2
         uint256 tokenOutBalance = IERC20(tokenOut).balanceOf(address(this));
         _v3Swap(sellPool, tokenOut, tokenIn, tokenOutBalance);
 
@@ -170,19 +154,22 @@ contract BackdraftArb {
         int256 amount1Delta,
         bytes calldata data
     ) external {
-        V3CallbackData memory cb = abi.decode(data, (V3CallbackData));
-        require(msg.sender == cb.pool, "invalid callback");
+        // Validate caller is the pool we initiated the swap on — not attacker-controlled data
+        require(msg.sender == _activeV3Pool, "invalid callback");
 
-        // Pay the pool whatever it's owed
+        V3CallbackData memory cb = abi.decode(data, (V3CallbackData));
         uint256 amountOwed = amount0Delta > 0 ? uint256(amount0Delta) : uint256(amount1Delta);
         IERC20(cb.tokenIn).transfer(msg.sender, amountOwed);
     }
 
     // --- Internal helpers ---
 
+    struct V3CallbackData {
+        address tokenIn;
+    }
+
     function _v2Swap(
         address pool,
-        address tokenIn,
         address tokenOut,
         uint256 amountOut
     ) internal {
@@ -196,7 +183,7 @@ contract BackdraftArb {
     function _getV2AmountOut(
         address pool,
         address tokenIn,
-        address tokenOut,
+        address, // tokenOut — unused but kept for readability at call sites
         uint256 amountIn
     ) internal view returns (uint256) {
         (uint112 r0, uint112 r1,) = IUniswapV2Pair(pool).getReserves();
@@ -212,19 +199,25 @@ contract BackdraftArb {
     function _v3Swap(
         address pool,
         address tokenIn,
-        address tokenOut,
+        address, // tokenOut
         uint256 amountIn
     ) internal {
         address token0 = IUniswapV3Pool(pool).token0();
         bool zeroForOne = tokenIn == token0;
+
+        // Set active pool before swap so callback can validate
+        _activeV3Pool = pool;
 
         IUniswapV3Pool(pool).swap(
             address(this),
             zeroForOne,
             int256(amountIn),
             zeroForOne ? MIN_SQRT_RATIO + 1 : MAX_SQRT_RATIO - 1,
-            abi.encode(V3CallbackData({tokenIn: tokenIn, pool: pool}))
+            abi.encode(V3CallbackData({tokenIn: tokenIn}))
         );
+
+        // Clear after swap
+        _activeV3Pool = address(0);
     }
 
     // --- Admin ---
