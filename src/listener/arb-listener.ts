@@ -99,7 +99,8 @@ export class ArbListener {
           }
         }
       } catch (err) {
-        // Silently skip — transient RPC errors are expected
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[arb] ${pair.symbol} scan error: ${msg.slice(0, 150)}`);
       }
     }
   }
