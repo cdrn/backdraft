@@ -1,0 +1,452 @@
+[
+  {
+    "symbol": "CCRE",
+    "chain": "base",
+    "pool": "0xbeA8dEf36c0512311d050A24B36b922C448605cB",
+    "fee": 3000,
+    "buy": "REVERT",
+    "sell": "?",
+    "verdict": "NO_LIQUIDITY"
+  },
+  {
+    "symbol": "DD",
+    "chain": "base",
+    "pool": "0xd13d4416165C302C9F6f6284910cEd673F185CA8",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "TROLL",
+    "chain": "base",
+    "pool": "0xC064B818B1114458711D513f8d029F9a916c4F5d",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "GKOR",
+    "chain": "base",
+    "pool": "0x640bCe4B059B2D70d1f115B651f9c39B59CfC88a",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "REVERT",
+    "verdict": "REAL_HONEYPOT"
+  },
+  {
+    "symbol": "SSU",
+    "chain": "base",
+    "pool": "0xAdb6A8bBb4228B67c97e2731e651CBF83c26F4F3",
+    "fee": 100,
+    "buy": "REVERT",
+    "sell": "?",
+    "verdict": "NO_LIQUIDITY"
+  },
+  {
+    "symbol": "BLESS",
+    "chain": "base",
+    "pool": "0x2A121D4A6AdC3330537E622eD497c5C87685100D",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "Xvt",
+    "chain": "base",
+    "pool": "0xA3c1ee252A9A6A999fE79Bc3E75D71FFF586c4Bf",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "REVERT",
+    "verdict": "REAL_HONEYPOT"
+  },
+  {
+    "symbol": "Gsfvv",
+    "chain": "base",
+    "pool": "0x1AFAA66DfE7Dfee6E5857d5FB9B3f0e461cD92e3",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "REVERT",
+    "verdict": "REAL_HONEYPOT"
+  },
+  {
+    "symbol": "Ugdbbd",
+    "chain": "base",
+    "pool": "0x5625cc95F6018ec4808B67F7C641bAdfCDaeAc51",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "REVERT",
+    "verdict": "REAL_HONEYPOT"
+  },
+  {
+    "symbol": "Wffs",
+    "chain": "base",
+    "pool": "0x0618d3576c56DdF25F347fa43d19fdb6739df042",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "REVERT",
+    "verdict": "REAL_HONEYPOT"
+  },
+  {
+    "symbol": "Dsdfg",
+    "chain": "base",
+    "pool": "0x4640fd801E9E900E48a725c215cC4c218bC381C1",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "REVERT",
+    "verdict": "REAL_HONEYPOT"
+  },
+  {
+    "symbol": "Rff",
+    "chain": "base",
+    "pool": "0x641D578710104db388C930F266CD0e8f52e295BE",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "REVERT",
+    "verdict": "REAL_HONEYPOT"
+  },
+  {
+    "symbol": "HT",
+    "chain": "base",
+    "pool": "0x8f34b20BdC3Cd6d1cFFB11ac4c6f2C64cc678602",
+    "fee": 3000,
+    "buy": "REVERT",
+    "sell": "?",
+    "verdict": "NO_LIQUIDITY"
+  },
+  {
+    "symbol": "BMPN",
+    "chain": "base",
+    "pool": "0xA0D6dA70311B82D202463126aEb96740489A37f5",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "DMD",
+    "chain": "base",
+    "pool": "0xc46eDE3695561565e30319BB8e5E52A199F02757",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "REVERT",
+    "verdict": "REAL_HONEYPOT"
+  },
+  {
+    "symbol": "AFS",
+    "chain": "base",
+    "pool": "0xA2d0dDCA7003f11D4a18724387F369af198d5AB8",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "REVERT",
+    "verdict": "REAL_HONEYPOT"
+  },
+  {
+    "symbol": "zta",
+    "chain": "base",
+    "pool": "0x2d80302B1CA6727Aabc64c37Fd3e2e825CB382ff",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "REVERT",
+    "verdict": "REAL_HONEYPOT"
+  },
+  {
+    "symbol": "GOTCHI",
+    "chain": "base",
+    "pool": "0xa82ef0D0e5b54e77732127c237942451D93C2BBc",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "REVERT",
+    "verdict": "REAL_HONEYPOT"
+  },
+  {
+    "symbol": "1XC",
+    "chain": "base",
+    "pool": "0xb97EA47667cb5Ec7E9C251d288b551d691e7F7A8",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "CROWDCAM",
+    "chain": "base",
+    "pool": "0xe27b1f17f81D0dF4ad8c4d2b466677ab0e158Ce9",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "PENIS",
+    "chain": "base",
+    "pool": "0x0f5F2A92566D16fEc93c5a3Aa3Fb7D9cAC5455B4",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "CENTRYFUGE",
+    "chain": "base",
+    "pool": "0x45A265e85C18675E3b7B0a1370637925502444b3",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "TRETARD",
+    "chain": "base",
+    "pool": "0xa126f58b133fd415B1F546Cb824572D288Ec2593",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "asdad",
+    "chain": "base",
+    "pool": "0xaF7D020dA596227c9633b7624c29933DAA09156D",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "REVERT",
+    "verdict": "REAL_HONEYPOT"
+  },
+  {
+    "symbol": "LOBQUEEN",
+    "chain": "base",
+    "pool": "0xCbc449fb3C96f1F25D11979239CcEF3Ab8D8E337",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "BULLONBASE",
+    "chain": "base",
+    "pool": "0xAFDF7A98B2301E7Dad9B551EE34C95515c918C5C",
+    "fee": 10000,
+    "buy": "REVERT",
+    "sell": "?",
+    "verdict": "NO_LIQUIDITY"
+  },
+  {
+    "symbol": "PWEASE",
+    "chain": "base",
+    "pool": "0x0410352DD81C56E5e0aCb048B0413fE7D0240e6b",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "REVERT",
+    "verdict": "REAL_HONEYPOT"
+  },
+  {
+    "symbol": "FLOOD",
+    "chain": "base",
+    "pool": "0x78E4d965b7af2fa7CA0F2Ab96fA1181C70f947fD",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "BMNTP",
+    "chain": "base",
+    "pool": "0x6EA3a5604a9792d1f80188ee1D1B5b43a331BA03",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "XLM",
+    "chain": "ethereum",
+    "pool": "0xc8A600f3839EAA43154596874ab48d75816c9bC3",
+    "fee": 3000,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "CC",
+    "chain": "ethereum",
+    "pool": "0x8FE69b7d6fF5D7cAA3d2937FFA1f85c8aEB283b8",
+    "fee": 3000,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "LTC",
+    "chain": "ethereum",
+    "pool": "0x304A53Ba0FAC51D5063f452D20ABDADBDA5ed03B",
+    "fee": 3000,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "HBAR",
+    "chain": "ethereum",
+    "pool": "0x45B372dF4fdd1f4f3603a7b227272CFFfC55BE93",
+    "fee": 3000,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "SUI",
+    "chain": "ethereum",
+    "pool": "0x3BB149248F81aBfE152c0c80142aCc1e6973fc43",
+    "fee": 3000,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "SLOP",
+    "chain": "ethereum",
+    "pool": "0x9Fb04A4eFDC7dec3B7f6fc4b1829DaB29318D499",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "CHECK",
+    "chain": "ethereum",
+    "pool": "0x8FE986E212906306a0280d2253055cFE1444842A",
+    "fee": 3000,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "retard0",
+    "chain": "ethereum",
+    "pool": "0xFE49847d1211821F5Ae5590bd25bB37F1696B64e",
+    "fee": 3000,
+    "buy": "REVERT",
+    "sell": "?",
+    "verdict": "NO_LIQUIDITY"
+  },
+  {
+    "symbol": "MTK",
+    "chain": "ethereum",
+    "pool": "0xB4AE9a3B88FCE0805772A054f0c7CE910eF57697",
+    "fee": 100,
+    "buy": "REVERT",
+    "sell": "?",
+    "verdict": "NO_LIQUIDITY"
+  },
+  {
+    "symbol": "LO0P",
+    "chain": "ethereum",
+    "pool": "0x506CF4c15AC14BC3DE28f7Ac905625bc016902d0",
+    "fee": 3000,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "UCCO",
+    "chain": "ethereum",
+    "pool": "0xEd374c8D689695866a64d74D82F3b1F75416b31F",
+    "fee": 10000,
+    "buy": "OK",
+    "sell": "REVERT",
+    "verdict": "REAL_HONEYPOT"
+  },
+  {
+    "symbol": "LO0P",
+    "chain": "ethereum",
+    "pool": "0x916c7a998B08F31667A0d8Dc4A9D62dC6c8a7D85",
+    "fee": 3000,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "LO0P",
+    "chain": "ethereum",
+    "pool": "0x4396762E29Ce8D3c2C01a3c427b8851205B761d1",
+    "fee": 10000,
+    "buy": "REVERT",
+    "sell": "?",
+    "verdict": "NO_LIQUIDITY"
+  },
+  {
+    "symbol": "panda",
+    "chain": "ethereum",
+    "pool": "0x422c8Ea8A09B584eCE48B8C597C46d8E36877434",
+    "fee": 3000,
+    "buy": "REVERT",
+    "sell": "?",
+    "verdict": "NO_LIQUIDITY"
+  },
+  {
+    "symbol": "Patapim",
+    "chain": "ethereum",
+    "pool": "0xD8885049e1D776A5e27241545F01327F9661F5Bb",
+    "fee": 3000,
+    "buy": "REVERT",
+    "sell": "?",
+    "verdict": "NO_LIQUIDITY"
+  },
+  {
+    "symbol": "Parallel",
+    "chain": "ethereum",
+    "pool": "0x5E4b38bF83D11154042Cf1964112DA397481d60f",
+    "fee": 10000,
+    "buy": "REVERT",
+    "sell": "?",
+    "verdict": "NO_LIQUIDITY"
+  },
+  {
+    "symbol": "LO0P",
+    "chain": "ethereum",
+    "pool": "0x4A029327B4fEf881978b8d5d22739349AF7B1173",
+    "fee": 500,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "LO0P",
+    "chain": "ethereum",
+    "pool": "0xfe866105b63c2243B58464c852A97d2a10a72a9C",
+    "fee": 10000,
+    "buy": "REVERT",
+    "sell": "?",
+    "verdict": "NO_LIQUIDITY"
+  },
+  {
+    "symbol": "YALL",
+    "chain": "ethereum",
+    "pool": "0x1332214E6a51FAaA0c19a9C3BB664f8632972068",
+    "fee": 3000,
+    "buy": "REVERT",
+    "sell": "?",
+    "verdict": "NO_LIQUIDITY"
+  },
+  {
+    "symbol": "HANTA",
+    "chain": "ethereum",
+    "pool": "0xF6B5a2041643A87244f83C1384C39a17b05a3f3A",
+    "fee": 100,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  },
+  {
+    "symbol": "SR ",
+    "chain": "ethereum",
+    "pool": "0x940A0676E6b91Bf687EFf19Fe21a48Ab86dc7d4F",
+    "fee": 100,
+    "buy": "OK",
+    "sell": "OK",
+    "verdict": "CLEAN_or_DRAINED"
+  }
+]

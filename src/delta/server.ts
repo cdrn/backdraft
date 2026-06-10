@@ -131,6 +131,14 @@ export function startServer(store: Store): void {
       return json(res, routeStats(store, days));
     }
 
+    if (url.pathname === "/api/paper") {
+      const limit = Number(url.searchParams.get("limit") ?? 50);
+      return json(res, {
+        stats: store.paperStats(),
+        entries: store.recentPaperEntries(limit),
+      });
+    }
+
     if (url.pathname === "/api/status") {
       return json(res, {
         telegram: alert.enabled,

@@ -1,6 +1,6 @@
-// Route cost model for one full round-trip rebalance: USDT moves from->to,
-// USDC returns to->from (the two transfers run in parallel, so time is the
-// max of the two legs, not the sum).
+// Route cost model for one full round-trip rebalance: the quote token moves
+// from->to, the base token returns to->from (the two transfers run in
+// parallel, so time is the max of the two legs, not the sum).
 //
 // These are conservative editable estimates, not live quotes. The board is
 // only as honest as this table — revisit when fees or rails change.
@@ -19,28 +19,39 @@ const USDC_GAS_USD: Record<string, number> = {
   solana: 0.1,
 };
 
-// CCTP v2 fast transfer: ~1 bps fee, settles in minutes regardless of
-// source-chain finality.
-function usdcCorridor(from: string): Corridor {
-  return {
-    feeBps: 1,
-    fixedUsd: USDC_GAS_USD[from] ?? 1,
-    minutes: 2,
-    via: "cctp-fast",
-  };
-}
-
-// USDT rails are uneven. Ethereum<->Arbitrum has USDT0 (LayerZero OFT,
-// burn-and-mint). Everything else we assume rebalances through a CEX
-// (deposit, internal transfer, withdraw) — slower and with withdrawal fees.
-function usdtCorridor(from: string, to: string): Corridor {
-  const key = [from, to].sort().join("-");
-  if (key === "arbitrum-ethereum") {
+// Per-token rails:
+// - USDC: CCTP v2 fast transfer — ~1 bps fee, settles in minutes.
+// - USDT: USDT0 (LayerZero OFT burn-and-mint) on Ethereum<->Arbitrum;
+//   everywhere else assume CEX rebalance (deposit, transfer, withdraw).
+// - USDe: LayerZero OFT burn-and-mint on every chain we track it.
+// - Everything else: CEX rebalance.
+function corridor(token: string, from: string, to: string): Corridor {
+  if (token === "USDC") {
+    return {
+      feeBps: 1,
+      fixedUsd: USDC_GAS_USD[from] ?? 1,
+      minutes: 2,
+      via: "cctp-fast",
+    };
+  }
+  if (token === "USDT") {
+    const key = [from, to].sort().join("-");
+    if (key === "arbitrum-ethereum") {
+      return {
+        feeBps: 0,
+        fixedUsd: from === "ethereum" ? 5 : 1,
+        minutes: 5,
+        via: "usdt0",
+      };
+    }
+    return { feeBps: 1, fixedUsd: 3, minutes: 30, via: "cex" };
+  }
+  if (token === "USDe") {
     return {
       feeBps: 0,
       fixedUsd: from === "ethereum" ? 5 : 1,
-      minutes: 5,
-      via: "usdt0",
+      minutes: 10,
+      via: "oft",
     };
   }
   return { feeBps: 1, fixedUsd: 3, minutes: 30, via: "cex" };
@@ -53,14 +64,21 @@ export interface RouteCost {
   via: string;
 }
 
-export function routeCost(from: string, to: string): RouteCost {
-  const usdt = usdtCorridor(from, to);
-  const usdc = usdcCorridor(to);
+// Round trip for pair (base, quote): quote token bridges from->to, base
+// token returns to->from.
+export function routeCost(
+  baseToken: string,
+  quoteToken: string,
+  from: string,
+  to: string,
+): RouteCost {
+  const quoteLeg = corridor(quoteToken, from, to);
+  const baseLeg = corridor(baseToken, to, from);
   return {
-    feeBps: usdt.feeBps + usdc.feeBps,
-    fixedUsd: usdt.fixedUsd + usdc.fixedUsd,
-    minutes: Math.max(usdt.minutes, usdc.minutes),
-    via: `${usdt.via}+${usdc.via}`,
+    feeBps: quoteLeg.feeBps + baseLeg.feeBps,
+    fixedUsd: quoteLeg.fixedUsd + baseLeg.fixedUsd,
+    minutes: Math.max(quoteLeg.minutes, baseLeg.minutes),
+    via: `${quoteLeg.via}+${baseLeg.via}`,
   };
 }
 

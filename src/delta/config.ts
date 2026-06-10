@@ -1,8 +1,14 @@
 export const SIZES_USD = [1_000, 10_000, 100_000, 1_000_000];
 
 // Pairs quoted on every chain that lists both legs; both directions.
+// Cross-chain routes only form where the pair exists on both ends —
+// single-chain pairs (USDC.e) still record venue-health data.
 export const PAIRS: { base: string; quote: string }[] = [
   { base: "USDC", quote: "USDT" },
+  { base: "USDC", quote: "DAI" },
+  { base: "USDC", quote: "USDe" },
+  { base: "USDC", quote: "PYUSD" },
+  { base: "USDC", quote: "USDC.e" },
 ];
 
 // Episode detection thresholds (net bps after cost model)
@@ -10,8 +16,13 @@ export const EPISODE_OPEN_BPS = Number(process.env.EPISODE_OPEN_BPS ?? 3);
 export const EPISODE_CLOSE_BPS = Number(process.env.EPISODE_CLOSE_BPS ?? 1);
 
 export const POLL_INTERVAL_MS = Number(
-  process.env.DELTA_POLL_INTERVAL_MS ?? 30_000,
+  process.env.DELTA_POLL_INTERVAL_MS ?? 60_000,
 );
+
+// A swap leg whose price degrades more than this from the smallest size to
+// the quoted size is treated as a thin pool (no real liquidity), not a
+// tradeable dislocation. Keeps deep depegs, drops empty-pool fantasy.
+export const MAX_IMPACT_BPS = Number(process.env.DELTA_MAX_IMPACT_BPS ?? 75);
 
 export const DB_PATH = process.env.DELTA_DB_PATH ?? "delta.db";
 
@@ -50,6 +61,21 @@ export const EVM_CHAINS: EvmChainConfig[] = [
         address: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
         decimals: 6,
       },
+      DAI: {
+        symbol: "DAI",
+        address: "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+        decimals: 18,
+      },
+      USDe: {
+        symbol: "USDe",
+        address: "0x4c9EDD5852cd905f086C759E8383e09bff1E68B3",
+        decimals: 18,
+      },
+      PYUSD: {
+        symbol: "PYUSD",
+        address: "0x6c3ea9036406852006290770BEdFcAbA0e23A0e8",
+        decimals: 6,
+      },
     },
   },
   {
@@ -67,6 +93,16 @@ export const EVM_CHAINS: EvmChainConfig[] = [
         symbol: "USDT",
         address: "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
         decimals: 6,
+      },
+      DAI: {
+        symbol: "DAI",
+        address: "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
+        decimals: 18,
+      },
+      USDe: {
+        symbol: "USDe",
+        address: "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
+        decimals: 18,
       },
     },
   },
@@ -86,6 +122,21 @@ export const EVM_CHAINS: EvmChainConfig[] = [
         address: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
         decimals: 6,
       },
+      DAI: {
+        symbol: "DAI",
+        address: "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+        decimals: 18,
+      },
+      USDe: {
+        symbol: "USDe",
+        address: "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34",
+        decimals: 18,
+      },
+      "USDC.e": {
+        symbol: "USDC.e",
+        address: "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+        decimals: 6,
+      },
     },
   },
 ];
@@ -98,6 +149,10 @@ export const SOLANA_TOKENS: Record<string, { mint: string; decimals: number }> =
     },
     USDT: {
       mint: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+      decimals: 6,
+    },
+    PYUSD: {
+      mint: "2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo",
       decimals: 6,
     },
   };

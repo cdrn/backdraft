@@ -9,35 +9,35 @@ import {
   SOLANA_TOKENS,
 } from "./config.js";
 import { EpisodeDetector } from "./derive/episodes.js";
+import { PaperLedger } from "./derive/paper.js";
 import { computeBoard } from "./derive/spreads.js";
-import { UniV3Quoter } from "./quoters/evm.js";
+import { KyberQuoter } from "./quoters/kyber.js";
 import { JupiterQuoter } from "./quoters/solana.js";
 import type { Store } from "./store.js";
 import type { Quote, Quoter } from "./types.js";
 
-// Both directions of every configured pair.
-const DIRECTIONS: [string, string][] = PAIRS.flatMap((p) => [
-  [p.base, p.quote] as [string, string],
-  [p.quote, p.base] as [string, string],
-]);
-
-function chainLists(quoter: Quoter): boolean {
+// Both directions of every pair the chain actually lists — a chain missing
+// one pair's token still quotes all its other pairs.
+function directionsFor(quoter: Quoter): [string, string][] {
   const symbols =
     quoter.chain === "solana"
       ? Object.keys(SOLANA_TOKENS)
       : Object.keys(
           EVM_CHAINS.find((c) => c.name === quoter.chain)?.tokens ?? {},
         );
-  return PAIRS.every(
+  return PAIRS.filter(
     (p) => symbols.includes(p.base) && symbols.includes(p.quote),
-  );
+  ).flatMap((p) => [
+    [p.base, p.quote] as [string, string],
+    [p.quote, p.base] as [string, string],
+  ]);
 }
 
 async function collectChain(quoter: Quoter): Promise<Quote[]> {
   const quotes: Quote[] = [];
   // Sequential within a chain to stay polite to public RPCs and Jupiter's
   // free tier; chains run in parallel.
-  for (const [tokenIn, tokenOut] of DIRECTIONS) {
+  for (const [tokenIn, tokenOut] of directionsFor(quoter)) {
     for (const size of SIZES_USD) {
       try {
         const q = await quoter.quote(tokenIn, tokenOut, size);
@@ -54,9 +54,9 @@ async function collectChain(quoter: Quoter): Promise<Quote[]> {
 
 export function startCollector(store: Store): void {
   const quoters: Quoter[] = [
-    ...EVM_CHAINS.map((c) => new UniV3Quoter(c)),
+    ...EVM_CHAINS.map((c) => new KyberQuoter(c)),
     new JupiterQuoter(),
-  ].filter(chainLists);
+  ].filter((q) => directionsFor(q).length > 0);
   const chains = quoters.map((q) => q.chain);
 
   const alert = new DeltaAlert();
@@ -70,6 +70,7 @@ export function startCollector(store: Store): void {
       onClose: (ep, ts) => void alert.alertClose(ep, ts),
     },
   );
+  const paper = new PaperLedger(store, EPISODE_OPEN_BPS);
 
   let running = false;
   const tick = async () => {
@@ -79,7 +80,10 @@ export function startCollector(store: Store): void {
       const results = await Promise.all(quoters.map(collectChain));
       const quotes = results.flat();
       store.insert(quotes);
-      detector.update(computeBoard(quotes, chains, SIZES_USD), Date.now());
+      const board = computeBoard(quotes, chains, SIZES_USD);
+      const now = Date.now();
+      detector.update(board, now);
+      paper.update(board, now);
       const summary = quotes
         .filter((q) => q.amountIn === 100_000 && q.tokenIn === "USDC")
         .map((q) => `${q.chain} ${q.bps.toFixed(2)}bps`)

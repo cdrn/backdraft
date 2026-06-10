@@ -26,6 +26,9 @@ export class JupiterQuoter implements Quoter {
     url.searchParams.set("amount", amount.toString());
     url.searchParams.set("slippageBps", "100");
 
+    // Politeness gap so a long sequential pair sweep stays under the free
+    // tier's rate limit.
+    await new Promise((r) => setTimeout(r, 250));
     const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
     if (!res.ok) {
       throw new Error(`jupiter ${res.status}: ${await res.text()}`);

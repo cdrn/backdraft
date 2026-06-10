@@ -41,7 +41,7 @@ export class EpisodeDetector {
     const bestBps = new Map<string, BoardCell>();
     const bestUsd = new Map<string, BoardCell>();
     for (const c of cells) {
-      const route = `${c.from}→${c.to}`;
+      const route = `${c.pair} ${c.from}→${c.to}`;
       const b = bestBps.get(route);
       if (!b || c.netBps > b.netBps) bestBps.set(route, c);
       if (c.netBps > 0) {

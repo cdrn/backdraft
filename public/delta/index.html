@@ -241,6 +241,38 @@
 
   td.open-ep { color: var(--red); font-weight: 600; }
 
+  /* paper ledger headline stats */
+  .paper-stats {
+    display: flex;
+    gap: 0;
+    flex-wrap: wrap;
+    border: 1px solid var(--ink);
+    margin-bottom: 14px;
+    background: var(--paper);
+    box-shadow: 3px 3px 0 rgba(26, 22, 16, 0.12);
+  }
+  .paper-stats .stat {
+    flex: 1;
+    min-width: 130px;
+    padding: 12px 16px;
+    border-right: 1px solid rgba(26, 22, 16, 0.25);
+  }
+  .paper-stats .stat:last-child { border-right: none; }
+  .paper-stats .stat .label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--brass);
+    margin-bottom: 5px;
+  }
+  .paper-stats .stat .figure {
+    font-family: "Instrument Serif", serif;
+    font-size: 28px;
+    font-variant-numeric: tabular-nums;
+  }
+  .paper-stats .stat .figure.good { color: var(--green); }
+  .paper-stats .stat .figure.bad { color: var(--red); }
+
   .divider {
     border-top: 3px double var(--ink);
     margin: 50px 0 30px;
@@ -274,7 +306,7 @@
       <div class="live" id="live-label">RECORDING</div>
     </div>
   </header>
-  <div class="subtitle">Executable prices at size · all nets are after the rebalance cost model</div>
+  <div class="subtitle">Every figure is one closed round trip: USDC out per USDC in, after costs · the delta is the squeeze</div>
 
   <div class="controls">
     <div class="control">
@@ -296,11 +328,27 @@
     </div>
   </div>
 
+  <!-- 0. the money-truth panel -->
+  <section>
+    <h2>Paper ledger — does the edge survive latency?</h2>
+    <div id="paper-stats" class="paper-stats"></div>
+    <table id="paper-table">
+      <thead>
+        <tr>
+          <th>Route</th><th>Size</th><th>Expected net</th>
+          <th>Realized net</th><th>Latency tax</th><th>Realized $</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div class="note">when a route clears the alert threshold, we record the spread at quote time, then re-price one tick later — realized is what you'd net acting on a stale quote. <b>Inventory mode</b> (capital pre-staged both sides); does NOT model your own market impact or non-atomic cross-chain fills, so treat as a ceiling, not a promise.</div>
+  </section>
+
   <!-- 1. where is the money right now -->
   <section class="board">
     <h2 id="board-title">Dislocation board — net round trip</h2>
     <table id="board-table"><thead></thead><tbody></tbody></table>
-    <div class="note">buy USDT on row chain · sell on column chain · net of rebalance cost model (cctp-fast / usdt0 / cex) · hover a cell for gross, cost, transfer time</div>
+    <div class="note">a cell is a closed round trip: start with USDC on the row chain → buy the quote token → bridge → sell for USDC on the column chain → bridge USDC home. Value shown is net of the rebalance cost model (cctp-fast / usdt0 / oft / cex). Best pair per route; hover for pair, gross, cost, transfer time. Cells only appear at a size the pool can actually fill (≤75 bps impact).</div>
   </section>
 
   <!-- 2. where has the money been: deploy-inventory decision -->
@@ -345,8 +393,8 @@
     <div class="note">episode opens at net ≥ 3 bps, closes under 1 bps · telegram fires on open/close · `npm run delta:backfill` replays history after cost-model changes</div>
   </section>
 
-  <!-- venue health: the seismograph proper -->
-  <div class="divider">Venue health — deviation from par</div>
+  <!-- issuer basis: same-chain, two issuers -->
+  <div class="divider">Issuer basis — same chain, one issuer vs another (diagnostic, not the arb)</div>
 
   <div class="controls">
     <div class="control">
@@ -425,8 +473,15 @@ function fmtSize(s) {
 function chainLabel(id) {
   return (CHAINS.find((c) => c.id === id) || { label: id }).label;
 }
+// route format: "USDC/USDT base→solana"
 function prettyRoute(route) {
-  return route.split("→").map(chainLabel).join(" → ");
+  const sp = route.indexOf(" ");
+  const pair = sp > 0 ? route.slice(0, sp) : "";
+  const legs = (sp > 0 ? route.slice(sp + 1) : route)
+    .split("→")
+    .map(chainLabel)
+    .join(" → ");
+  return pair ? `${legs} · ${pair}` : legs;
 }
 
 // ---- chain tabs ----
@@ -555,8 +610,13 @@ function line(ctx, x1, y1, x2, y2) {
 function renderBoard(cells) {
   const atSize = cells.filter((c) => c.size === state.size);
   document.getElementById("board-title").textContent =
-    `Dislocation board — net round trip at ${fmtSize(state.size)}`;
-  const cell = (from, to) => atSize.find((c) => c.from === from && c.to === to);
+    `Dislocation board — best pair, net round trip at ${fmtSize(state.size)}`;
+  // best pair per route at this size
+  const cell = (from, to) => {
+    const candidates = atSize.filter((c) => c.from === from && c.to === to);
+    if (!candidates.length) return null;
+    return candidates.reduce((a, b) => (b.netBps > a.netBps ? b : a));
+  };
 
   document.querySelector("#board-table thead").innerHTML =
     `<tr><th>buy ↓ / sell →</th>` +
@@ -570,9 +630,9 @@ function renderBoard(cells) {
       if (!c) return `<td class="neg">no quote</td>`;
       const cls = c.netBps >= ALERT_BPS ? "hot" : c.netBps > 0 ? "pos" : "neg";
       const tip =
-        `gross ${fmtBps(c.grossBps)} bps · cost ${c.costBps.toFixed(2)} bps` +
+        `${c.pair} · gross ${fmtBps(c.grossBps)} bps · cost ${c.costBps.toFixed(2)} bps` +
         ` · ~${c.minutes} min via ${c.via}`;
-      return `<td class="${cls}" title="${tip}">${fmtBps(c.netBps)}<span class="usd">$${c.netUsd.toFixed(0)}/trip</span></td>`;
+      return `<td class="${cls}" title="${tip}">${fmtBps(c.netBps)}<span class="usd">${c.pair.split("/")[1]} · $${c.netUsd.toFixed(0)}/trip</span></td>`;
     }).join("");
     return `<tr><td>${row.label}</td>${tds}</tr>`;
   }).join("");
@@ -624,6 +684,38 @@ function renderSpreadDrum(routeSeries) {
     .join("");
 }
 
+function renderPaper(data) {
+  const s = data.stats;
+  const taxCls = s.meanSlippageBps <= 0 ? "good" : "bad";
+  const realCls = s.meanRealizedBps > 0 ? "good" : "bad";
+  document.getElementById("paper-stats").innerHTML = `
+    <div class="stat"><div class="label">Settled / pending</div><div class="figure">${s.settled} / ${s.pending}</div></div>
+    <div class="stat"><div class="label">Mean expected</div><div class="figure">${fmtBps(s.meanExpectedBps)}</div></div>
+    <div class="stat"><div class="label">Mean realized</div><div class="figure ${realCls}">${fmtBps(s.meanRealizedBps)}</div></div>
+    <div class="stat"><div class="label">Latency tax</div><div class="figure ${taxCls}">${fmtBps(s.meanSlippageBps)}</div></div>
+    <div class="stat"><div class="label">Survives latency</div><div class="figure">${(s.hitRate * 100).toFixed(0)}%</div></div>`;
+
+  const tbody = document.querySelector("#paper-table tbody");
+  if (!data.entries.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--ink-soft)">no paper trips yet — waiting for a route to clear threshold</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = data.entries
+    .map((e) => {
+      const tax = e.expectedNetBps - (e.realizedNetBps ?? 0);
+      const rCls = (e.realizedNetBps ?? 0) > 0 ? "good" : "hot";
+      return `<tr>
+        <td>${prettyRoute(e.route)}</td>
+        <td>${fmtSize(e.size)}</td>
+        <td>${fmtBps(e.expectedNetBps)} bps</td>
+        <td class="${rCls}">${fmtBps(e.realizedNetBps)} bps</td>
+        <td>${fmtBps(-tax)} bps</td>
+        <td class="${rCls}">$${(e.realizedUsd ?? 0).toFixed(0)}</td>
+      </tr>`;
+    })
+    .join("");
+}
+
 function renderCatalog(episodes) {
   const tbody = document.querySelector("#catalog-table tbody");
   if (!episodes.length) {
@@ -653,8 +745,11 @@ function renderCatalog(episodes) {
 // ---- venue health (par drums) ----
 function redraw() {
   if (!lastSeries) return;
+  const other = state.dir === "USDC" ? "USDT" : "USDC";
   const byChain = (id) =>
-    lastSeries.filter((q) => q.chain === id && q.tokenIn === state.dir);
+    lastSeries.filter(
+      (q) => q.chain === id && q.tokenIn === state.dir && q.tokenOut === other,
+    );
 
   drawDrum(
     document.getElementById("cv-all"),
@@ -688,7 +783,7 @@ function redraw() {
 // ---- data ----
 async function refresh() {
   try {
-    const [series, latest, board, episodes, routes, spreadSeries, status] =
+    const [series, latest, board, episodes, routes, spreadSeries, paper, status] =
       await Promise.all([
         fetch(`/api/series?minutes=${state.minutes}&size=${state.size}`).then((r) => r.json()),
         fetch(`/api/latest`).then((r) => r.json()),
@@ -696,9 +791,11 @@ async function refresh() {
         fetch(`/api/episodes?limit=50`).then((r) => r.json()),
         fetch(`/api/route-stats?days=7`).then((r) => r.json()),
         fetch(`/api/route-series?minutes=${state.minutes}&size=${state.size}`).then((r) => r.json()),
+        fetch(`/api/paper?limit=50`).then((r) => r.json()),
         fetch(`/api/status`).then((r) => r.json()),
       ]);
     lastSeries = series;
+    renderPaper(paper);
     renderBoard(board);
     renderRouteStats(routes);
     renderSpreadDrum(spreadSeries);
@@ -713,7 +810,10 @@ async function refresh() {
     tbody.innerHTML = "";
     for (const c of CHAINS) {
       for (const dir of ["USDC", "USDT"]) {
-        const rows = latest.filter((q) => q.chain === c.id && q.tokenIn === dir);
+        const out = dir === "USDC" ? "USDT" : "USDC";
+        const rows = latest.filter(
+          (q) => q.chain === c.id && q.tokenIn === dir && q.tokenOut === out,
+        );
         if (!rows.length) continue;
         const cells = SIZES.map((s) => {
           const r = rows.find((q) => q.amountIn === s);
