@@ -9,13 +9,31 @@ services:
     volumes:
       - backdraft-data:/app/data
 
+  # Delta — venue-basis seismograph. Same image, separate process so the
+  # dataset never gaps while the scanner/executor container churns.
+  delta:
+    image: ghcr.io/cdrn/backdraft:latest
+    container_name: delta
+    restart: unless-stopped
+    env_file: .env
+    command: ["node", "dist/delta/main.js"]
+    environment:
+      - DELTA_DB_PATH=/app/data/delta.db
+    ports:
+      - "127.0.0.1:4747:4747"
+    volumes:
+      - delta-data:/app/data
+
   watchtower:
     image: containrrr/watchtower
     container_name: watchtower
     restart: unless-stopped
+    environment:
+      - DOCKER_API_VERSION=1.44
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    command: --interval 60 backdraft
+    command: --interval 60 backdraft delta
 
 volumes:
   backdraft-data:
+  delta-data:

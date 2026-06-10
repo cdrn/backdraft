@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DELTAHOUND — Venue Basis Observatory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f3ecdc;
+    --paper-dark: #e9e0cb;
+    --grid-major: rgba(166, 88, 60, 0.28);
+    --grid-minor: rgba(166, 88, 60, 0.12);
+    --ink: #1a1610;
+    --ink-soft: #4a4338;
+    --red: #b3361e;
+    --green: #205c3b;
+    --brass: #8a6d3b;
+    --trace-eth: #1a1610;
+    --trace-base: #15457a;
+    --trace-arb: #205c3b;
+    --trace-sol: #6b3d8f;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13px;
+    min-height: 100vh;
+    position: relative;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .station { max-width: 1180px; margin: 0 auto; padding: 36px 28px 80px; }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-top: 3px double var(--ink);
+    border-bottom: 1px solid var(--ink);
+    padding: 14px 4px 12px;
+    margin-bottom: 8px;
+  }
+  h1 {
+    font-family: "Instrument Serif", serif;
+    font-weight: 400;
+    font-size: 42px;
+    letter-spacing: 0.01em;
+  }
+  h1 .hound { font-style: italic; }
+  .plate {
+    text-align: right;
+    font-size: 11px;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    line-height: 1.7;
+  }
+  .plate .live { color: var(--red); }
+  .plate .live::before {
+    content: "●";
+    margin-right: 6px;
+    animation: blink 2.4s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0.15; } }
+  .plate .armed { color: var(--green); }
+
+  .subtitle {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: var(--ink-soft);
+    padding: 6px 4px 22px;
+  }
+
+  .controls {
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+    padding: 10px 4px 26px;
+    align-items: center;
+  }
+  .control { display: flex; align-items: center; gap: 10px; }
+  .control label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--brass);
+  }
+  .seg { display: flex; border: 1px solid var(--ink); background: var(--paper-dark); }
+  .seg button {
+    font-family: inherit;
+    font-size: 11px;
+    padding: 5px 12px;
+    border: none;
+    background: transparent;
+    color: var(--ink-soft);
+    cursor: pointer;
+    border-right: 1px solid rgba(26, 22, 16, 0.25);
+    transition: background 0.12s, color 0.12s;
+  }
+  .seg button:last-child { border-right: none; }
+  .seg button:hover { color: var(--ink); }
+  .seg button.on { background: var(--ink); color: var(--paper); }
+
+  h2 {
+    font-family: "Instrument Serif", serif;
+    font-weight: 400;
+    font-size: 24px;
+    font-style: italic;
+    margin-bottom: 12px;
+  }
+  section { margin-bottom: 44px; }
+  .note {
+    margin-top: 8px;
+    font-size: 10px;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--brass);
+    text-align: right;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--ink);
+    font-weight: 500;
+  }
+  th:first-child, td:first-child { text-align: left; }
+  td {
+    padding: 7px 10px;
+    text-align: right;
+    border-bottom: 1px dotted rgba(26, 22, 16, 0.25);
+    font-size: 12px;
+  }
+  td.hot { color: var(--red); font-weight: 600; }
+  td.good { color: var(--green); font-weight: 600; }
+
+  /* board matrix */
+  .board table { table-layout: fixed; }
+  .board td, .board th { text-align: center; }
+  .board th:first-child, .board td:first-child {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .board td.self { background: var(--paper-dark); color: rgba(74, 67, 56, 0.35); }
+  .board td .usd { display: block; font-size: 10px; color: var(--ink-soft); font-weight: 400; }
+  .board td.pos { font-weight: 600; color: var(--green); }
+  .board td.hot { color: var(--red); font-weight: 600; }
+  .board td.neg { color: rgba(74, 67, 56, 0.55); }
+
+  /* drums */
+  .drum {
+    margin-bottom: 26px;
+    border: 1px solid var(--ink);
+    background: var(--paper);
+    box-shadow: 3px 3px 0 rgba(26, 22, 16, 0.12);
+  }
+  .drum-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--ink);
+    background: var(--paper-dark);
+    flex-wrap: wrap;
+    gap: 4px 16px;
+  }
+  .drum-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.24em;
+  }
+  .drum-title .swatch {
+    display: inline-block;
+    width: 22px;
+    height: 3px;
+    margin-right: 10px;
+    vertical-align: middle;
+  }
+  .drum-read { font-size: 12px; font-variant-numeric: tabular-nums; }
+  .drum-read .bps { font-weight: 600; }
+  .drum-read .bps.hot { color: var(--red); }
+  .drum-read .venue {
+    color: var(--ink-soft);
+    font-size: 10px;
+    margin-left: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  canvas { display: block; width: 100%; height: 120px; }
+  .drum-main canvas, .drum-spread canvas { height: 220px; }
+
+  .legend { display: flex; gap: 18px; font-size: 11px; font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+  .legend .key {
+    display: inline-block;
+    width: 16px;
+    height: 3px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .legend .val { font-weight: 600; }
+  .legend .val.hot { color: var(--red); }
+  .legend .val.good { color: var(--green); }
+
+  .chain-bar { display: flex; align-items: center; gap: 14px; padding: 4px 4px 14px; }
+  .chain-bar label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--brass);
+  }
+  .chain-bar .seg button .key {
+    display: inline-block;
+    width: 12px;
+    height: 3px;
+    margin-right: 7px;
+    vertical-align: middle;
+  }
+
+  td.open-ep { color: var(--red); font-weight: 600; }
+
+  .divider {
+    border-top: 3px double var(--ink);
+    margin: 50px 0 30px;
+    padding-top: 16px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: var(--ink-soft);
+  }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 12px;
+    border-top: 3px double var(--ink);
+    font-size: 10px;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+<div class="station">
+  <header>
+    <h1>DELTA<span class="hound">HOUND</span></h1>
+    <div class="plate">
+      <div>Stablecoin Venue-Basis Seismograph · Backdraft Delta</div>
+      <div>CMP: USDC/USDT &nbsp;·&nbsp; <span id="tg-status">TG: —</span></div>
+      <div class="live" id="live-label">RECORDING</div>
+    </div>
+  </header>
+  <div class="subtitle">Executable prices at size · all nets are after the rebalance cost model</div>
+
+  <div class="controls">
+    <div class="control">
+      <label>Size</label>
+      <div class="seg" id="seg-size">
+        <button data-v="1000">$1k</button>
+        <button data-v="10000">$10k</button>
+        <button data-v="100000" class="on">$100k</button>
+        <button data-v="1000000">$1M</button>
+      </div>
+    </div>
+    <div class="control">
+      <label>Window</label>
+      <div class="seg" id="seg-window">
+        <button data-v="60" class="on">1h</button>
+        <button data-v="360">6h</button>
+        <button data-v="1440">24h</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1. where is the money right now -->
+  <section class="board">
+    <h2 id="board-title">Dislocation board — net round trip</h2>
+    <table id="board-table"><thead></thead><tbody></tbody></table>
+    <div class="note">buy USDT on row chain · sell on column chain · net of rebalance cost model (cctp-fast / usdt0 / cex) · hover a cell for gross, cost, transfer time</div>
+  </section>
+
+  <!-- 2. where has the money been: deploy-inventory decision -->
+  <section>
+    <h2>Route intelligence — last 7 days</h2>
+    <table id="routes-table">
+      <thead>
+        <tr>
+          <th>Route</th><th>Net now</th><th>Episodes</th>
+          <th>Median duration</th><th>Max peak</th><th>Σ opportunity</th><th>Last event</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div class="note">ranked by total $ opportunity · median duration is the edge filter: seconds belong to bots, minutes are yours · park inventory on routes that recur</div>
+  </section>
+
+  <!-- 3. spread history for the top routes -->
+  <section>
+    <div class="drum drum-spread">
+      <div class="drum-head">
+        <span class="drum-title">Net edge — top routes</span>
+        <span class="legend" id="spread-legend"></span>
+      </div>
+      <canvas id="cv-spread" height="220"></canvas>
+    </div>
+    <div class="note">net round-trip edge over time at selected size · above the line is money · red ticks mark alert threshold</div>
+  </section>
+
+  <!-- 4. event history -->
+  <section>
+    <h2>Event catalog</h2>
+    <table id="catalog-table">
+      <thead>
+        <tr>
+          <th>Route</th><th>Opened</th><th>Duration</th>
+          <th>Peak net</th><th>At size</th><th>Est $/trip</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div class="note">episode opens at net ≥ 3 bps, closes under 1 bps · telegram fires on open/close · `npm run delta:backfill` replays history after cost-model changes</div>
+  </section>
+
+  <!-- venue health: the seismograph proper -->
+  <div class="divider">Venue health — deviation from par</div>
+
+  <div class="controls">
+    <div class="control">
+      <label>Direction</label>
+      <div class="seg" id="seg-dir">
+        <button data-v="USDC" class="on">USDC&#8594;USDT</button>
+        <button data-v="USDT">USDT&#8594;USDC</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="drum drum-main">
+    <div class="drum-head">
+      <span class="drum-title">All chains — overlay</span>
+      <span class="legend" id="legend"></span>
+    </div>
+    <canvas id="cv-all" height="220"></canvas>
+  </div>
+
+  <div class="chain-bar">
+    <label>Chain</label>
+    <div class="seg" id="seg-chain"></div>
+  </div>
+  <div class="drum">
+    <div class="drum-head">
+      <span class="drum-title" id="chain-title"></span>
+      <span class="drum-read"><span class="bps" id="chain-read">—</span> bps<span class="venue" id="chain-venue"></span></span>
+    </div>
+    <canvas id="cv-chain" height="120"></canvas>
+  </div>
+
+  <section>
+    <h2>Chain log — latest readings</h2>
+    <table id="log-table">
+      <thead>
+        <tr>
+          <th>Chain</th><th>Venue</th><th>Direction</th>
+          <th>$1k</th><th>$10k</th><th>$100k</th><th>$1M</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <footer>
+    <span>backdraft delta — venue drift instrument</span>
+    <span id="updated"></span>
+  </footer>
+</div>
+
+<script>
+const CHAINS = [
+  { id: "ethereum", label: "Ethereum", color: getCss("--trace-eth") },
+  { id: "base",     label: "Base",     color: getCss("--trace-base") },
+  { id: "arbitrum", label: "Arbitrum", color: getCss("--trace-arb") },
+  { id: "solana",   label: "Solana",   color: getCss("--trace-sol") },
+];
+const SIZES = [1000, 10000, 100000, 1000000];
+const HOT_BPS = 5;
+const ALERT_BPS = 3;
+const ROUTE_COLORS = ["#b3361e", "#15457a", "#205c3b", "#6b3d8f", "#8a6d3b"];
+
+let state = { size: 100000, minutes: 60, dir: "USDC", chain: "ethereum" };
+let lastSeries = null;
+
+function getCss(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+function fmtBps(b) {
+  if (b === null || b === undefined) return "—";
+  return (b >= 0 ? "+" : "") + b.toFixed(2);
+}
+function fmtSize(s) {
+  return s >= 1000000 ? `$${s / 1000000}M` : `$${s / 1000}k`;
+}
+function chainLabel(id) {
+  return (CHAINS.find((c) => c.id === id) || { label: id }).label;
+}
+function prettyRoute(route) {
+  return route.split("→").map(chainLabel).join(" → ");
+}
+
+// ---- chain tabs ----
+const segChain = document.getElementById("seg-chain");
+for (const c of CHAINS) {
+  const btn = document.createElement("button");
+  btn.dataset.v = c.id;
+  btn.innerHTML = `<span class="key" style="background:${c.color}"></span>${c.label}`;
+  if (c.id === state.chain) btn.classList.add("on");
+  segChain.appendChild(btn);
+}
+
+function wireSeg(id, key, parse, refetch) {
+  document.getElementById(id).addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    for (const b of btn.parentElement.children) b.classList.remove("on");
+    btn.classList.add("on");
+    state[key] = parse(btn.dataset.v);
+    refetch ? refresh() : redraw();
+  });
+}
+wireSeg("seg-size", "size", Number, true);
+wireSeg("seg-window", "minutes", Number, true);
+wireSeg("seg-dir", "dir", String, true);
+wireSeg("seg-chain", "chain", String, false);
+
+// ---- drawing ----
+// seriesList: [{ points: [{ts, bps}], color }]; shared scale.
+// opts.zeroLabel: label for the center line; opts.profitTint shades above it.
+function drawDrum(canvas, seriesList, minutes, opts = {}) {
+  const zeroLabel = opts.zeroLabel || "par";
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+
+  const CLIP = 50;
+  let maxAbs = 6;
+  for (const s of seriesList)
+    for (const p of s.points) maxAbs = Math.max(maxAbs, Math.abs(p.bps));
+  maxAbs = Math.min(Math.ceil(maxAbs * 1.2), CLIP);
+  const yOf = (bps) =>
+    h / 2 - (Math.max(-maxAbs, Math.min(maxAbs, bps)) / maxAbs) * (h / 2 - 8);
+  const clipped = (bps) => Math.abs(bps) > maxAbs;
+
+  if (opts.profitTint) {
+    ctx.fillStyle = "rgba(32, 92, 59, 0.05)";
+    ctx.fillRect(0, 0, w, h / 2);
+  }
+
+  ctx.strokeStyle = getCss("--grid-minor");
+  ctx.lineWidth = 0.5;
+  for (let x = 0; x < w; x += 8) line(ctx, x, 0, x, h);
+  for (let y = 0; y < h; y += 8) line(ctx, 0, y, w, y);
+  ctx.strokeStyle = getCss("--grid-major");
+  for (let x = 0; x < w; x += 80) line(ctx, x, 0, x, h);
+
+  ctx.strokeStyle = "rgba(179, 54, 30, 0.55)";
+  ctx.lineWidth = 1;
+  ctx.setLineDash([1, 3]);
+  line(ctx, 0, h / 2, w, h / 2);
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = "rgba(74, 67, 56, 0.7)";
+  ctx.font = "9px 'IBM Plex Mono', monospace";
+  ctx.fillText(`+${maxAbs}`, 4, 12);
+  ctx.fillText(`−${maxAbs}`, 4, h - 5);
+  ctx.fillText(zeroLabel, 4, h / 2 - 3);
+
+  if (!seriesList.some((s) => s.points.length)) {
+    ctx.fillStyle = "rgba(74, 67, 56, 0.5)";
+    ctx.font = "11px 'IBM Plex Mono', monospace";
+    ctx.fillText("awaiting signal …", w / 2 - 50, h / 2 - 8);
+    return;
+  }
+
+  const now = Date.now();
+  const t0 = now - minutes * 60000;
+  const xOf = (ts) => ((ts - t0) / (now - t0)) * w;
+
+  for (const s of seriesList) {
+    if (!s.points.length) continue;
+
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 1.4;
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    s.points.forEach((p, i) => {
+      const x = xOf(p.ts), y = yOf(p.bps);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    ctx.strokeStyle = getCss("--red");
+    for (const p of s.points) {
+      const x = xOf(p.ts);
+      if (clipped(p.bps)) {
+        ctx.lineWidth = 2;
+        const yEdge = p.bps > 0 ? 8 : h - 8;
+        line(ctx, x, yEdge - 4, x, yEdge + 4);
+      } else if (Math.abs(p.bps) >= (opts.tickAt ?? HOT_BPS)) {
+        ctx.lineWidth = 1;
+        line(ctx, x, 2, x, 7);
+      }
+    }
+
+    const last = s.points[s.points.length - 1];
+    ctx.fillStyle = s.color;
+    ctx.beginPath();
+    ctx.arc(xOf(last.ts), yOf(last.bps), 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function line(ctx, x1, y1, x2, y2) {
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+}
+
+// ---- operator panels ----
+function renderBoard(cells) {
+  const atSize = cells.filter((c) => c.size === state.size);
+  document.getElementById("board-title").textContent =
+    `Dislocation board — net round trip at ${fmtSize(state.size)}`;
+  const cell = (from, to) => atSize.find((c) => c.from === from && c.to === to);
+
+  document.querySelector("#board-table thead").innerHTML =
+    `<tr><th>buy ↓ / sell →</th>` +
+    CHAINS.map((c) => `<th>${c.label}</th>`).join("") +
+    `</tr>`;
+
+  document.querySelector("#board-table tbody").innerHTML = CHAINS.map((row) => {
+    const tds = CHAINS.map((col) => {
+      if (row.id === col.id) return `<td class="self">·</td>`;
+      const c = cell(row.id, col.id);
+      if (!c) return `<td class="neg">no quote</td>`;
+      const cls = c.netBps >= ALERT_BPS ? "hot" : c.netBps > 0 ? "pos" : "neg";
+      const tip =
+        `gross ${fmtBps(c.grossBps)} bps · cost ${c.costBps.toFixed(2)} bps` +
+        ` · ~${c.minutes} min via ${c.via}`;
+      return `<td class="${cls}" title="${tip}">${fmtBps(c.netBps)}<span class="usd">$${c.netUsd.toFixed(0)}/trip</span></td>`;
+    }).join("");
+    return `<tr><td>${row.label}</td>${tds}</tr>`;
+  }).join("");
+}
+
+function renderRouteStats(stats) {
+  const rows = stats
+    .slice()
+    .sort((a, b) => b.totalOpportunityUsd - a.totalOpportunityUsd);
+  document.querySelector("#routes-table tbody").innerHTML = rows
+    .map((r) => {
+      const netCls =
+        r.currentNetBps === null ? "" : r.currentNetBps >= ALERT_BPS ? "hot" : r.currentNetBps > 0 ? "good" : "";
+      return `<tr>
+        <td>${prettyRoute(r.route)}${r.openNow ? ' <span style="color:var(--red)">●</span>' : ""}</td>
+        <td class="${netCls}">${r.currentNetBps === null ? "—" : fmtBps(r.currentNetBps) + " bps"}</td>
+        <td>${r.episodes}</td>
+        <td>${r.medianDurationMin === null ? "—" : r.medianDurationMin >= 60 ? (r.medianDurationMin / 60).toFixed(1) + " h" : Math.round(r.medianDurationMin) + " min"}</td>
+        <td>${r.maxPeakBps === null ? "—" : fmtBps(r.maxPeakBps) + " bps"}</td>
+        <td>$${r.totalOpportunityUsd.toFixed(2)}</td>
+        <td>${r.lastOpenedTs ? new Date(r.lastOpenedTs).toLocaleString() : "—"}</td>
+      </tr>`;
+    })
+    .join("");
+}
+
+function renderSpreadDrum(routeSeries) {
+  // top routes by latest net at the selected size
+  const entries = Object.entries(routeSeries)
+    .map(([route, pts]) => ({ route, pts, last: pts.length ? pts[pts.length - 1].netBps : -Infinity }))
+    .sort((a, b) => b.last - a.last)
+    .slice(0, 4);
+
+  drawDrum(
+    document.getElementById("cv-spread"),
+    entries.map((e, i) => ({
+      points: e.pts.map((p) => ({ ts: p.ts, bps: p.netBps })),
+      color: ROUTE_COLORS[i % ROUTE_COLORS.length],
+    })),
+    state.minutes,
+    { zeroLabel: "even", profitTint: true, tickAt: ALERT_BPS },
+  );
+
+  document.getElementById("spread-legend").innerHTML = entries
+    .map((e, i) => {
+      const cls = e.last >= ALERT_BPS ? "hot" : e.last > 0 ? "good" : "";
+      return `<span><span class="key" style="background:${ROUTE_COLORS[i % ROUTE_COLORS.length]}"></span>${prettyRoute(e.route)} <span class="val ${cls}">${fmtBps(e.last)}</span></span>`;
+    })
+    .join("");
+}
+
+function renderCatalog(episodes) {
+  const tbody = document.querySelector("#catalog-table tbody");
+  if (!episodes.length) {
+    tbody.innerHTML =
+      `<tr><td colspan="7" style="text-align:center;color:var(--ink-soft)">no events recorded — the instrument is listening</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = episodes
+    .map((ep) => {
+      const open = ep.closedTs === null;
+      const dur = ((ep.closedTs ?? ep.lastTs) - ep.openedTs) / 60000;
+      const durStr =
+        dur >= 60 ? `${(dur / 60).toFixed(1)} h` : `${Math.max(1, Math.round(dur))} min`;
+      return `<tr>
+        <td>${prettyRoute(ep.route)}</td>
+        <td>${new Date(ep.openedTs).toLocaleString()}</td>
+        <td>${durStr}</td>
+        <td>${fmtBps(ep.peakBps)} bps</td>
+        <td>${fmtSize(ep.peakSize)}</td>
+        <td>$${ep.peakUsd.toFixed(2)}</td>
+        <td class="${open ? "open-ep" : ""}">${open ? "OPEN" : "closed"}</td>
+      </tr>`;
+    })
+    .join("");
+}
+
+// ---- venue health (par drums) ----
+function redraw() {
+  if (!lastSeries) return;
+  const byChain = (id) =>
+    lastSeries.filter((q) => q.chain === id && q.tokenIn === state.dir);
+
+  drawDrum(
+    document.getElementById("cv-all"),
+    CHAINS.map((c) => ({ points: byChain(c.id), color: c.color })),
+    state.minutes,
+  );
+
+  document.getElementById("legend").innerHTML = CHAINS.map((c) => {
+    const pts = byChain(c.id);
+    const last = pts[pts.length - 1];
+    const hot = last && Math.abs(last.bps) >= HOT_BPS ? " hot" : "";
+    return `<span><span class="key" style="background:${c.color}"></span>${c.label} <span class="val${hot}">${last ? fmtBps(last.bps) : "—"}</span></span>`;
+  }).join("");
+
+  const chain = CHAINS.find((c) => c.id === state.chain);
+  const pts = byChain(chain.id);
+  document.getElementById("chain-title").innerHTML =
+    `<span class="swatch" style="background:${chain.color}"></span>${chain.label}`;
+  drawDrum(
+    document.getElementById("cv-chain"),
+    [{ points: pts, color: chain.color }],
+    state.minutes,
+  );
+  const last = pts[pts.length - 1];
+  const readEl = document.getElementById("chain-read");
+  readEl.textContent = last ? fmtBps(last.bps) : "—";
+  readEl.classList.toggle("hot", !!last && Math.abs(last.bps) >= HOT_BPS);
+  document.getElementById("chain-venue").textContent = last ? last.venue : "";
+}
+
+// ---- data ----
+async function refresh() {
+  try {
+    const [series, latest, board, episodes, routes, spreadSeries, status] =
+      await Promise.all([
+        fetch(`/api/series?minutes=${state.minutes}&size=${state.size}`).then((r) => r.json()),
+        fetch(`/api/latest`).then((r) => r.json()),
+        fetch(`/api/board`).then((r) => r.json()),
+        fetch(`/api/episodes?limit=50`).then((r) => r.json()),
+        fetch(`/api/route-stats?days=7`).then((r) => r.json()),
+        fetch(`/api/route-series?minutes=${state.minutes}&size=${state.size}`).then((r) => r.json()),
+        fetch(`/api/status`).then((r) => r.json()),
+      ]);
+    lastSeries = series;
+    renderBoard(board);
+    renderRouteStats(routes);
+    renderSpreadDrum(spreadSeries);
+    renderCatalog(episodes);
+    redraw();
+
+    const tg = document.getElementById("tg-status");
+    tg.textContent = status.telegram ? "TG: ARMED" : "TG: OFF";
+    tg.className = status.telegram ? "armed" : "";
+
+    const tbody = document.querySelector("#log-table tbody");
+    tbody.innerHTML = "";
+    for (const c of CHAINS) {
+      for (const dir of ["USDC", "USDT"]) {
+        const rows = latest.filter((q) => q.chain === c.id && q.tokenIn === dir);
+        if (!rows.length) continue;
+        const cells = SIZES.map((s) => {
+          const r = rows.find((q) => q.amountIn === s);
+          if (!r) return "<td>—</td>";
+          const hot = Math.abs(r.bps) >= HOT_BPS ? " class=\"hot\"" : "";
+          return `<td${hot}>${fmtBps(r.bps)}</td>`;
+        }).join("");
+        const venue = rows[0].venue;
+        const arrow = dir === "USDC" ? "USDC→USDT" : "USDT→USDC";
+        tbody.insertAdjacentHTML(
+          "beforeend",
+          `<tr><td>${c.label}</td><td style="text-align:right">${venue}</td><td>${arrow}</td>${cells}</tr>`,
+        );
+      }
+    }
+
+    document.getElementById("updated").textContent =
+      "last reading " + new Date().toLocaleTimeString();
+    document.getElementById("live-label").textContent = "RECORDING";
+  } catch (err) {
+    document.getElementById("live-label").textContent = "SIGNAL LOST";
+  }
+}
+
+refresh();
+setInterval(refresh, 30000);
+window.addEventListener("resize", redraw);
+</script>
+</body>
+</html>

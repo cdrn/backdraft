@@ -15,6 +15,7 @@ MEV searcher and contract scanner on Ethereum and Base. Modular pipeline archite
 - `src/config/` — feature flags, verified token/DEX addresses per chain
 - `src/store/` — SQLite persistence
 - `src/alerts/` — Telegram notifications
+- `src/delta/` — stablecoin venue-basis seismograph (own entrypoint `dist/delta/main.js`, own container + SQLite DB so the dataset never gaps while the scanner/executor churns). Quotes executable USDC↔USDT at $1k–$1M on Ethereum/Base/Arbitrum (UniV3 QuoterV2) + Solana (Jupiter); derives a cross-chain dislocation board and episode catalog net of the rebalance cost model in `src/delta/costs.ts`; dashboard on :4747; Telegram alerts on episode open/close. Raw quotes are source of truth — `npm run delta:backfill` replays history after threshold/cost-model changes.
 - `contracts/` — Solidity contracts (Foundry project)
 
 ## Key Decisions
