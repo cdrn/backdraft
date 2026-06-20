@@ -89,6 +89,18 @@
   .note { font-size:10px; color:var(--faint); padding:12px 20px 14px; line-height:1.6; }
 
   footer { margin-top:30px; padding-top:14px; border-top:1px solid var(--edge); display:flex; justify-content:space-between; font-size:10px; color:var(--faint); }
+  canvas { cursor:crosshair; }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:11px; align-items:center; }
+  .legend .it { display:inline-flex; align-items:center; gap:6px; color:var(--dim); }
+  .legend .sw { width:14px; height:3px; border-radius:2px; }
+  .legend .v { color:var(--txt); font-weight:600; }
+  #tooltip { position:fixed; z-index:50; pointer-events:none; background:#0f141a; border:1px solid var(--edge);
+    border-radius:8px; padding:8px 10px; font-size:11px; display:none; box-shadow:0 10px 30px -10px #000; min-width:130px; }
+  #tooltip .tt-t { color:var(--faint); font-size:9px; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:5px; }
+  #tooltip .tt-r { display:flex; justify-content:space-between; gap:14px; line-height:1.7; }
+  #tooltip .tt-r .nm { display:inline-flex; align-items:center; gap:6px; color:var(--dim); }
+  #tooltip .tt-r .nm i { width:9px; height:3px; border-radius:2px; display:inline-block; }
+  #tooltip .tt-r .vv { color:var(--txt); font-weight:600; }
   @media (max-width:860px){ .top,.twocol{grid-template-columns:1fr;} .multiples{grid-template-columns:1fr;} }
 </style>
 </head>
@@ -112,10 +124,17 @@
   </div>
 
   <div class="section-head rise" style="animation-delay:.1s">
-    <div><h2>Net carry over time</h2><div class="sub">per symbol · is the edge persistent?</div></div>
+    <div><h2>Net carry over time</h2><div class="sub">overlay + per symbol · is the edge persistent?</div></div>
     <div class="seg" id="seg-window">
       <button data-v="360">6h</button><button data-v="1440" class="on">24h</button><button data-v="4320">3d</button>
     </div>
+  </div>
+  <div class="panel rise" style="animation-delay:.11s; margin-bottom:14px;">
+    <div class="pad" style="padding-bottom:0; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+      <div><h2>All pairs</h2><div class="sub">net carry overlay · hover to read all values</div></div>
+      <span class="legend" id="combined-legend"></span>
+    </div>
+    <div class="chart-wrap"><canvas id="cv-combined" height="240"></canvas></div>
   </div>
   <div class="multiples rise" id="multiples" style="animation-delay:.12s"></div>
 
@@ -153,6 +172,7 @@
 
   <footer><span>backdraft · funding instrument</span><span id="updated"></span></footer>
 </div>
+<div id="tooltip"></div>
 
 <script>
 const SYM_COLOR = { BTC:"#e0a64b", ETH:"#3fd6a0", SOL:"#5a9fe6" };
@@ -167,6 +187,11 @@ const usdCls = (v) => v>0?"pos":v<0?"neg":"dim";
 
 let state = { minutes:1440 };
 let cfg = { takerBps:{}, holdDays:3, openPct:10, closePct:4, pollIntervalMs:60000 };
+const chartState = {}; // canvasId -> { draw(hoverPx)->geom, tooltipAt(t)->html }
+const nearest = (pts,t) => { let n=pts[0]; for(const p of pts) if(Math.abs(p.t-t)<Math.abs(n.t-t))n=p; return n; };
+const netRefs = () => [
+  {v:cfg.openPct,label:`open ${cfg.openPct}%`,color:css("--green"),dash:[5,0]},
+  {v:cfg.closePct,label:`close ${cfg.closePct}%`,color:css("--faint"),dash:[2,4]} ];
 const taker = (v) => (cfg.takerBps[v]??5);
 const feeAnnPct = (s,l) => (2*(taker(s)+taker(l))/100)*(365/cfg.holdDays);
 function bestPair(rows){ if(rows.length<2)return null; let hi=rows[0],lo=rows[0];
@@ -204,6 +229,15 @@ function lineChart(canvas, series, opts={}) {
     ctx.strokeStyle=s.color; ctx.lineWidth=s.width||1.7; ctx.lineJoin="round";
     ctx.beginPath(); s.points.forEach((p,i)=>{const x=X(p.t),y=Y(p.v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}); ctx.stroke();
     const last=s.points.at(-1); ctx.fillStyle=s.color; ctx.beginPath(); ctx.arc(X(last.t),Y(last.v),2.4,0,7); ctx.fill(); }
+  if(opts.hoverPx!=null && opts.hoverPx>=x0 && opts.hoverPx<=x1){
+    ctx.strokeStyle="rgba(231,235,240,0.28)"; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(opts.hoverPx,y0); ctx.lineTo(opts.hoverPx,y1); ctx.stroke(); ctx.setLineDash([]);
+    const ht=t0+((opts.hoverPx-x0)/(x1-x0))*(now-t0);
+    for(const s of series){ if(!s.points.length)continue; let np=s.points[0]; for(const p of s.points) if(Math.abs(p.t-ht)<Math.abs(np.t-ht))np=p;
+      ctx.fillStyle=s.color; ctx.beginPath(); ctx.arc(X(np.t),Y(np.v),3.4,0,7); ctx.fill();
+      ctx.strokeStyle=css("--bg"); ctx.lineWidth=1.5; ctx.stroke(); }
+  }
+  return { x0,x1,y0,y1,t0,now };
 }
 function sparkline(canvas, pts, color){
   const dpr=window.devicePixelRatio||1,w=canvas.clientWidth,h=canvas.clientHeight;
@@ -239,6 +273,21 @@ function renderKpis(p){ const s=p.stats;
     <div class="kpi"><div class="lbl">mean realized</div><div class="v ${s.meanRealizedAnnPct>=0?"pos":"neg"}">${fmtPct(s.meanRealizedAnnPct)}</div><div class="d">${s.meanHoldDays.toFixed(2)}d hold</div></div>
     <div class="kpi"><div class="lbl">win rate</div><div class="v">${(s.winRate*100).toFixed(0)}%</div><div class="d">carry ${fmtUsd(s.closedCarryUsd)} · fees ${fmtUsd(-s.closedFeesUsd)}</div></div>`; }
 
+// combined overlay — all symbols on one axis, hover reads every value
+function renderCombined(ns){
+  const syms=Object.keys(ns).sort();
+  const series=syms.map(s=>({sym:s,points:ns[s],color:symColor(s)}));
+  const cv=document.getElementById("cv-combined");
+  const draw=(hoverPx)=>lineChart(cv, series.map(s=>({points:s.points,color:s.color})), {pct:true,hoverPx,refs:netRefs()});
+  chartState["cv-combined"]={ draw, tooltipAt:(t)=>{ let rows="",tt=t;
+    for(const s of series){ if(!s.points.length)continue; const np=nearest(s.points,t); tt=np.t;
+      rows+=`<div class="tt-r"><span class="nm"><i style="background:${s.color}"></i>${s.sym}</span><span class="vv">${fmtPct(np.v)}</span></div>`; }
+    return `<div class="tt-t">${new Date(tt).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>${rows}`; } };
+  draw();
+  document.getElementById("combined-legend").innerHTML=syms.map(s=>{const last=ns[s].at(-1);
+    return `<span class="it"><span class="sw" style="background:${symColor(s)}"></span>${s} <span class="v">${last?fmtPct(last.v):"—"}</span></span>`;}).join("");
+}
+
 // small multiples — one mini net-carry chart per symbol, each its own scale
 function renderMultiples(ns){
   const syms=Object.keys(ns).sort(); const host=document.getElementById("multiples");
@@ -249,17 +298,22 @@ function renderMultiples(ns){
       <div class="mleg">net carry · open ${cfg.openPct}% / close ${cfg.closePct}%</div>
       <canvas id="mc-${s}" height="120"></canvas></div>`; }).join("");
   for(const s of syms){
-    lineChart(document.getElementById("mc-"+s), [{points:ns[s],color:symColor(s),fill:symColor(s)}],
-      { pct:true, compact:true, refs:[
-        {v:cfg.openPct,label:`open`,color:css("--green"),dash:[5,0]},
-        {v:cfg.closePct,label:``,color:css("--faint"),dash:[2,4]} ] });
+    const cid="mc-"+s, pts=ns[s];
+    const draw=(hoverPx)=>lineChart(document.getElementById(cid), [{points:pts,color:symColor(s),fill:symColor(s)}],
+      { pct:true, compact:true, hoverPx, refs:[{v:cfg.openPct,label:`open`,color:css("--green"),dash:[5,0]},{v:cfg.closePct,label:``,color:css("--faint"),dash:[2,4]}] });
+    chartState[cid]={ draw, tooltipAt:(t)=>{ if(!pts.length)return ""; const np=nearest(pts,t);
+      return `<div class="tt-t">${s} · ${new Date(np.t).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div><div class="tt-r"><span class="nm">net carry</span><span class="vv">${fmtPct(np.v)}</span></div>`; } };
+    draw();
   }
 }
 
 function renderEquity(p){ const closed=[...p.closed].filter(x=>x.closedTs).sort((a,b)=>a.closedTs-b.closedTs);
   let c=0; const pts=closed.map(x=>({t:x.closedTs,v:(c+=x.totalPnl)}));
-  lineChart(document.getElementById("cv-equity"), [{points:pts,color:css("--green"),fill:css("--green")}],
-    { refs:[{v:0,label:"",color:css("--edge"),dash:[3,3]}] }); }
+  const draw=(hoverPx)=>lineChart(document.getElementById("cv-equity"), [{points:pts,color:css("--green"),fill:css("--green")}],
+    { hoverPx, refs:[{v:0,label:"",color:css("--edge"),dash:[3,3]}] });
+  chartState["cv-equity"]={ draw, tooltipAt:(t)=>{ if(!pts.length)return ""; const np=nearest(pts,t);
+    return `<div class="tt-t">${new Date(np.t).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div><div class="tt-r"><span class="nm">equity</span><span class="vv">${fmtUsd(np.v)}</span></div>`; } };
+  draw(); }
 
 function renderMatrix(latest){ const venues=[...new Set(latest.map(s=>s.venue))].sort(), syms=[...new Set(latest.map(s=>s.symbol))].sort();
   document.getElementById("matrix-head").innerHTML=`<th>Sym</th>`+venues.map(v=>`<th>${vlabel(v)}</th>`).join("")+`<th>Spread</th>`;
@@ -310,7 +364,27 @@ function renderLedger(p){ const rows=[...p.open.map(x=>({...x,_o:true})),...p.cl
       <td class="${ann==null?"dim":usdCls(ann)}">${ann==null?"live":fmtPct(ann)}</td></tr>`; }).join(""); }
 
 let lastSnaps=null,lastBoard=null,lastPaper=null;
-function redrawCharts(){ if(!lastSnaps)return; const ns=netSeriesFromSnaps(lastSnaps); renderMultiples(ns); renderHero(lastBoard,ns); if(lastPaper)renderEquity(lastPaper); }
+function redrawCharts(){ if(!lastSnaps)return; const ns=netSeriesFromSnaps(lastSnaps); renderCombined(ns); renderMultiples(ns); renderHero(lastBoard,ns); if(lastPaper)renderEquity(lastPaper); }
+
+// shared hover: redraw the hovered chart with a crosshair + float its tooltip
+const tipEl=document.getElementById("tooltip"); let lastHover=null;
+document.addEventListener("mousemove",(e)=>{
+  const cv=e.target.closest?e.target.closest("canvas"):null;
+  if(!cv||!chartState[cv.id]){ if(lastHover&&chartState[lastHover])chartState[lastHover].draw(); lastHover=null; tipEl.style.display="none"; return; }
+  if(lastHover&&lastHover!==cv.id&&chartState[lastHover]) chartState[lastHover].draw();
+  lastHover=cv.id;
+  const r=cv.getBoundingClientRect(), px=e.clientX-r.left;
+  const geom=chartState[cv.id].draw(px);
+  if(!geom||px<geom.x0||px>geom.x1){ tipEl.style.display="none"; return; }
+  const t=geom.t0+((px-geom.x0)/(geom.x1-geom.x0))*(geom.now-geom.t0);
+  const html=chartState[cv.id].tooltipAt(t); if(!html){ tipEl.style.display="none"; return; }
+  tipEl.innerHTML=html; tipEl.style.display="block";
+  const tw=tipEl.offsetWidth, th=tipEl.offsetHeight;
+  let lx=e.clientX+14, ly=e.clientY+14;
+  if(lx+tw>window.innerWidth-8) lx=e.clientX-tw-14;
+  if(ly+th>window.innerHeight-8) ly=e.clientY-th-14;
+  tipEl.style.left=lx+"px"; tipEl.style.top=ly+"px";
+});
 
 async function refresh(){ try{
   const [board,latest,paper,series,impact,status]=await Promise.all([
