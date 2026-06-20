@@ -1,0 +1,163 @@
+import {
+  DISPERSION_CLOSE_PCT,
+  DISPERSION_OPEN_PCT,
+  FUNDING_PAPER_NOTIONAL,
+  VENUE_TAKER_BPS,
+} from "../config.js";
+import type { Store } from "../store.js";
+import type { FundingSnapshot } from "../types.js";
+import type { DispersionCell } from "./dispersion.js";
+
+// Carry-aware paper ledger — the honest "is this real money" test, without
+// spending any. Unlike the delta ledger (open→settle next tick, a spatial
+// arb), funding carry is a HELD position: open delta-neutral when net
+// annualized clears a threshold, accrue funding every tick at the rates
+// actually observed, track basis drift between the two legs' marks, and only
+// realize at close, net of entry+exit fills on BOTH legs. The question it
+// answers: does the carry out-earn the fee and the basis noise over the hold
+// it actually took — not the hold we assumed.
+
+export interface PaperPosition {
+  id: number;
+  symbol: string;
+  shortVenue: string; // short here (was highest funding)
+  longVenue: string; // long here (was lowest funding)
+  openedTs: number;
+  notional: number; // per leg
+  entryShortAnn: number;
+  entryLongAnn: number;
+  entryShortPx: number;
+  entryLongPx: number;
+  carryPnl: number; // accumulated funding $ (running, updated each tick)
+  lastAccrualTs: number;
+  lastShortAnn: number; // last observed rates (display + accrual)
+  lastLongAnn: number;
+  feePaid: number; // entry fee (one side of the round trip)
+  // set at close:
+  closedTs: number | null;
+  exitShortPx: number | null;
+  exitLongPx: number | null;
+  basisPnl: number | null; // mark divergence between legs ($) — the risk
+  totalFee: number | null; // full round trip (entry + exit, both legs)
+  totalPnl: number | null; // carry + basis − fees
+  realizedAnnPct: number | null; // totalPnl/notional annualized over actual hold
+}
+
+export interface PaperStats {
+  open: number;
+  closed: number;
+  openUnrealizedUsd: number; // carry so far − full round-trip fee (basis excluded; unpriced)
+  closedCarryUsd: number;
+  closedBasisUsd: number;
+  closedFeesUsd: number;
+  closedNetUsd: number;
+  meanRealizedAnnPct: number;
+  meanHoldDays: number;
+  winRate: number; // fraction of closed positions net-positive
+}
+
+const taker = (v: string): number => (VENUE_TAKER_BPS[v] ?? 5) / 10_000;
+// Entry fills both legs once; the round trip is entry + exit = 2x that.
+const entryFee = (notional: number, s: string, l: string): number =>
+  notional * (taker(s) + taker(l));
+const roundTripFee = (notional: number, s: string, l: string): number =>
+  2 * entryFee(notional, s, l);
+
+export class PaperLedger {
+  constructor(
+    private store: Store,
+    private openPct = DISPERSION_OPEN_PCT,
+    private closePct = DISPERSION_CLOSE_PCT,
+    private notional = FUNDING_PAPER_NOTIONAL,
+  ) {}
+
+  update(board: DispersionCell[], snaps: FundingSnapshot[], ts: number): void {
+    const snap = (venue: string, symbol: string) =>
+      snaps.find((s) => s.venue === venue && s.symbol === symbol);
+
+    // 1. accrue carry on open positions, then close any whose edge compressed.
+    for (const pos of this.store.openPaperPositions()) {
+      const s = snap(pos.shortVenue, pos.symbol);
+      const l = snap(pos.longVenue, pos.symbol);
+      if (!s || !l) continue; // can't price this tick → leave untouched
+
+      // carry over elapsed wall-clock at the currently observed rates.
+      // annualizedPct/100 is the yearly fraction; × dt/8760 = elapsed share.
+      const dtHours = (ts - pos.lastAccrualTs) / 3_600_000;
+      if (dtHours > 0) {
+        pos.carryPnl +=
+          pos.notional *
+          ((s.annualizedPct - l.annualizedPct) / 100) *
+          (dtHours / 8760);
+      }
+      this.store.accruePaperPosition(
+        pos.id,
+        pos.carryPnl,
+        ts,
+        s.annualizedPct,
+        l.annualizedPct,
+      );
+
+      // close when the directional spread (short − long) compresses below the
+      // close threshold — including a sign flip, where it goes negative.
+      const currentSpread = s.annualizedPct - l.annualizedPct;
+      if (currentSpread < this.closePct) {
+        const sPx = s.markPx ?? pos.entryShortPx;
+        const lPx = l.markPx ?? pos.entryLongPx;
+        // short profits when its mark falls, long when its mark rises; if both
+        // legs tracked the index identically this is ~0 — the residual is basis.
+        const basisFrac =
+          (pos.entryShortPx - sPx) / pos.entryShortPx +
+          (lPx - pos.entryLongPx) / pos.entryLongPx;
+        const basisPnl = pos.notional * basisFrac;
+        const totalFee = roundTripFee(
+          pos.notional,
+          pos.shortVenue,
+          pos.longVenue,
+        );
+        const totalPnl = pos.carryPnl + basisPnl - totalFee;
+        const holdDays = (ts - pos.openedTs) / 86_400_000;
+        const realizedAnnPct =
+          holdDays > 0 ? (totalPnl / pos.notional) * (365 / holdDays) * 100 : 0;
+        this.store.closePaperPosition(pos.id, {
+          closedTs: ts,
+          exitShortPx: sPx,
+          exitLongPx: lPx,
+          basisPnl,
+          totalFee,
+          totalPnl,
+          realizedAnnPct,
+        });
+      }
+    }
+
+    // 2. open a position for each symbol clearing the open threshold that has
+    //    no open position yet. Need marks on both legs to track basis.
+    const openSymbols = new Set(
+      this.store.openPaperPositions().map((p) => p.symbol),
+    );
+    for (const c of board) {
+      if (c.netAnnPct < this.openPct || openSymbols.has(c.symbol)) continue;
+      const s = snap(c.shortVenue, c.symbol);
+      const l = snap(c.longVenue, c.symbol);
+      if (!s?.markPx || !l?.markPx) continue;
+      this.store.openPaperPosition({
+        symbol: c.symbol,
+        shortVenue: c.shortVenue,
+        longVenue: c.longVenue,
+        openedTs: ts,
+        notional: this.notional,
+        entryShortAnn: s.annualizedPct,
+        entryLongAnn: l.annualizedPct,
+        entryShortPx: s.markPx,
+        entryLongPx: l.markPx,
+        carryPnl: 0,
+        lastAccrualTs: ts,
+        lastShortAnn: s.annualizedPct,
+        lastLongAnn: l.annualizedPct,
+        feePaid: entryFee(this.notional, c.shortVenue, c.longVenue),
+      });
+      openSymbols.add(c.symbol);
+    }
+  }
+}

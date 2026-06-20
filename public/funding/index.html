@@ -167,6 +167,22 @@
     <div class="note">net = funding differential (annualized) minus entry+exit taker fees on BOTH legs, amortized over the assumed hold. A positive net is a delta-neutral pair that out-earns its own fills at that hold.</div>
   </section>
 
+  <!-- paper ledger: the money-truth panel -->
+  <section>
+    <h2>Paper ledger — does the carry out-earn fees + basis?</h2>
+    <div id="paper-stats" class="cards"></div>
+    <table id="paper-table">
+      <thead>
+        <tr>
+          <th>Symbol</th><th>Position</th><th>Status</th><th>Hold</th>
+          <th>Carry $</th><th>Basis $</th><th>Fees $</th><th>Net $</th><th>Ann %</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div class="note">opens delta-neutral when net annualized clears the threshold; accrues funding each tick at observed rates; closes when the spread compresses. <b>Carry</b> is funding earned, <b>basis</b> is the leg-mark divergence (the risk), <b>net</b> = carry + basis − round-trip fills. Ignores own market impact and non-atomic fills — a ceiling, not a promise.</div>
+  </section>
+
   <!-- per-symbol carry board -->
   <section>
     <h2>Carry board — best cross-venue pair per symbol</h2>
@@ -243,6 +259,53 @@ function renderBoard(board) {
   }).join("");
 }
 
+function fmtUsd(v) {
+  if (v === null || v === undefined || Number.isNaN(v)) return "—";
+  return (v >= 0 ? "" : "−") + "$" + Math.abs(v).toFixed(2);
+}
+function usdCls(v) { return v > 0 ? "hot" : v < 0 ? "neg" : "dim"; }
+
+function renderPaper(data) {
+  const s = data.stats;
+  document.getElementById("paper-stats").innerHTML = `
+    <div class="stat"><div class="label">Open / closed</div><div class="figure">${s.open} / ${s.closed}</div></div>
+    <div class="stat"><div class="label">Open unrealized</div><div class="figure ${s.openUnrealizedUsd >= 0 ? "good" : ""}">${fmtUsd(s.openUnrealizedUsd)}</div><div class="sub">carry − round-trip fee</div></div>
+    <div class="stat"><div class="label">Closed net</div><div class="figure ${s.closedNetUsd >= 0 ? "good" : ""}">${fmtUsd(s.closedNetUsd)}</div><div class="sub">carry ${fmtUsd(s.closedCarryUsd)} · basis ${fmtUsd(s.closedBasisUsd)} · fees ${fmtUsd(-s.closedFeesUsd)}</div></div>
+    <div class="stat"><div class="label">Mean realized</div><div class="figure ${s.meanRealizedAnnPct >= 0 ? "good" : ""}">${fmtPct(s.meanRealizedAnnPct)}</div><div class="sub">${s.meanHoldDays.toFixed(2)}d mean hold</div></div>
+    <div class="stat"><div class="label">Win rate</div><div class="figure">${(s.winRate * 100).toFixed(0)}%</div></div>`;
+
+  const rows = [
+    ...data.open.map((p) => ({ ...p, _open: true })),
+    ...data.closed.map((p) => ({ ...p, _open: false })),
+  ];
+  const tbody = document.querySelector("#paper-table tbody");
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--ink-soft)">no paper positions yet — waiting for a pair to clear the open threshold</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map((p) => {
+    const now = Date.now();
+    const holdDays = ((p.closedTs ?? now) - p.openedTs) / 86400000;
+    const hold = holdDays >= 1 ? holdDays.toFixed(1) + "d" : Math.max(1, Math.round(holdDays * 24)) + "h";
+    const carry = p._open ? p.carryPnl : p.carryPnl;
+    const basis = p._open ? null : p.basisPnl;
+    const fees = p._open ? 2 * p.feePaid : p.totalFee;
+    const net = p._open ? p.carryPnl - 2 * p.feePaid : p.totalPnl;
+    const ann = p._open ? null : p.realizedAnnPct;
+    return `<tr>
+      <td><b>${p.symbol}</b></td>
+      <td class="leg"><span class="short">S ${vlabel(p.shortVenue)}</span>/<span class="long">L ${vlabel(p.longVenue)}</span></td>
+      <td class="${p._open ? "hot" : "dim"}">${p._open ? "OPEN" : "closed"}</td>
+      <td>${hold}</td>
+      <td class="${usdCls(carry)}">${fmtUsd(carry)}</td>
+      <td class="${basis === null ? "dim" : usdCls(basis)}">${basis === null ? "—" : fmtUsd(basis)}</td>
+      <td class="dim">${fmtUsd(-fees)}</td>
+      <td class="${usdCls(net)} big">${fmtUsd(net)}</td>
+      <td class="${ann === null ? "dim" : usdCls(ann)}">${ann === null ? "live" : fmtPct(ann)}</td>
+    </tr>`;
+  }).join("");
+}
+
 function renderMatrix(latest) {
   const venues = [...new Set(latest.map((s) => s.venue))].sort();
   const symbols = [...new Set(latest.map((s) => s.symbol))].sort();
@@ -264,12 +327,14 @@ function renderMatrix(latest) {
 
 async function refresh() {
   try {
-    const [board, latest, status] = await Promise.all([
+    const [board, latest, paper, status] = await Promise.all([
       fetch("/api/board").then((r) => r.json()),
       fetch("/api/latest").then((r) => r.json()),
+      fetch("/api/paper?limit=50").then((r) => r.json()),
       fetch("/api/status").then((r) => r.json()),
     ]);
     renderTop(board);
+    renderPaper(paper);
     renderBoard(board);
     renderMatrix(latest);
     document.getElementById("poll").textContent =

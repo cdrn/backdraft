@@ -34,3 +34,9 @@ export const VENUE_TAKER_BPS: Record<string, number> = {
 // annualized drag. Short holds can't out-earn the fee — that's the whole
 // point of measuring net, not gross.
 export const ASSUMED_HOLD_DAYS = Number(process.env.FUNDING_HOLD_DAYS ?? 3);
+
+// Paper ledger notional PER LEG (USD). A position is this much short on one
+// venue and this much long on the other — delta-neutral, 2x capital tied up.
+export const FUNDING_PAPER_NOTIONAL = Number(
+  process.env.FUNDING_PAPER_NOTIONAL ?? 10_000,
+);

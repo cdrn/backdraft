@@ -1,5 +1,6 @@
 import { FUNDING_POLL_INTERVAL_MS, SYMBOLS } from "./config.js";
 import { computeDispersion } from "./derive/dispersion.js";
+import { PaperLedger } from "./derive/paper.js";
 import type { Store } from "./store.js";
 import type { FundingSnapshot, FundingVenue } from "./types.js";
 import { DydxVenue } from "./venues/dydx.js";
@@ -18,6 +19,7 @@ export function startCollector(store: Store): void {
   console.log(
     `[funding] venues: ${venues.map((v) => `${v.name}(${v.intervalHours}h)`).join(", ")}  symbols: ${SYMBOLS.join(",")}`,
   );
+  const paper = new PaperLedger(store);
 
   const pollVenue = async (v: FundingVenue): Promise<FundingSnapshot[]> => {
     try {
@@ -42,6 +44,7 @@ export function startCollector(store: Store): void {
       }
       store.insert(snaps);
       const board = computeDispersion(snaps);
+      paper.update(board, snaps, Date.now());
       const top = board
         .slice(0, 3)
         .map(

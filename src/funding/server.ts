@@ -38,6 +38,16 @@ export function startServer(store: Store): void {
       return json(res, store.series(minutes));
     }
 
+    // Carry paper ledger — open positions (live carry) + recent closed + stats.
+    if (url.pathname === "/api/paper") {
+      const limit = Number(url.searchParams.get("limit") ?? 50);
+      return json(res, {
+        stats: store.paperStats(),
+        open: store.openPaperPositions(),
+        closed: store.recentClosedPaperPositions(limit),
+      });
+    }
+
     if (url.pathname === "/api/status") {
       return json(res, {
         pollIntervalMs: FUNDING_POLL_INTERVAL_MS,
