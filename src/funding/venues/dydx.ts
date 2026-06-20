@@ -1,5 +1,5 @@
 import { annualizedPct } from "../types.js";
-import type { FundingSnapshot, FundingVenue } from "../types.js";
+import type { FundingSnapshot, FundingVenue, RawBook } from "../types.js";
 
 // dYdX v4: hourly funding, settled every hour. The indexer exposes the
 // predicted next-hour rate as `nextFundingRate` and an oracle price per
@@ -44,5 +44,21 @@ export class DydxVenue implements FundingVenue {
       });
     }
     return out;
+  }
+
+  // {bids:[{price,size}], asks:[{price,size}]}
+  async fetchBook(symbol: string): Promise<RawBook | null> {
+    const res = await fetch(
+      `https://indexer.dydx.trade/v4/orderbooks/perpetualMarket/${TICKER(symbol)}`,
+    );
+    if (!res.ok) throw new Error(`dydx book ${res.status}`);
+    const b = (await res.json()) as {
+      bids?: { price: string; size: string }[];
+      asks?: { price: string; size: string }[];
+    };
+    if (!b.bids?.length || !b.asks?.length) return null;
+    const map = (l: { price: string; size: string }[]): [number, number][] =>
+      l.map((x) => [Number(x.price), Number(x.size)]);
+    return { bids: map(b.bids), asks: map(b.asks) };
   }
 }

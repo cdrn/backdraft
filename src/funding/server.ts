@@ -53,6 +53,9 @@ export function startServer(store: Store): void {
       });
     }
 
+    // Depth / slippage: latest fill-cost (bps from mid) per venue/symbol.
+    if (url.pathname === "/api/impact") return json(res, store.latestImpacts());
+
     if (url.pathname === "/api/status") {
       return json(res, {
         pollIntervalMs: FUNDING_POLL_INTERVAL_MS,

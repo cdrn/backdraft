@@ -13,11 +13,20 @@ export interface FundingSnapshot {
   markPx: number | null; // venue mark/oracle price (basis-risk tracking)
 }
 
+// A normalized L2 book: price-ascending asks, price-descending bids, each
+// level [price, size]. Size is in base units (e.g. ETH), price in USD.
+export interface RawBook {
+  bids: [number, number][];
+  asks: [number, number][];
+}
+
 export interface FundingVenue {
   name: string;
   intervalHours: number;
   // Best-effort: returns what it can, logs and skips what it can't.
   poll(symbols: string[]): Promise<FundingSnapshot[]>;
+  // Optional L2 book for one symbol — feeds the depth/slippage model.
+  fetchBook?(symbol: string): Promise<RawBook | null>;
 }
 
 export function annualizedPct(rate: number, intervalHours: number): number {

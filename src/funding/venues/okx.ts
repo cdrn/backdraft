@@ -1,5 +1,5 @@
 import { annualizedPct } from "../types.js";
-import type { FundingSnapshot, FundingVenue } from "../types.js";
+import type { FundingSnapshot, FundingVenue, RawBook } from "../types.js";
 
 // OKX: 8h funding — the interval-mismatch counterparty to the hourly on-chain
 // venues, where the structural dispersion lives. Funding rate and mark price
@@ -50,5 +50,21 @@ export class OkxVenue implements FundingVenue {
       }
     }
     return out;
+  }
+
+  // data[0].{bids,asks} = [[px, sz, liqOrders, numOrders], ...]
+  async fetchBook(symbol: string): Promise<RawBook | null> {
+    const res = await fetch(
+      `https://www.okx.com/api/v5/market/books?instId=${INST(symbol)}&sz=100`,
+    );
+    if (!res.ok) throw new Error(`okx book ${res.status}`);
+    const { data } = (await res.json()) as {
+      data?: { bids?: string[][]; asks?: string[][] }[];
+    };
+    const d = data?.[0];
+    if (!d?.bids?.length || !d?.asks?.length) return null;
+    const map = (l: string[][]): [number, number][] =>
+      l.map((x) => [Number(x[0]), Number(x[1])]);
+    return { bids: map(d.bids), asks: map(d.asks) };
   }
 }

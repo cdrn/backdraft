@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import type { BookImpact } from "./derive/impact.js";
 import type { PaperPosition, PaperStats } from "./derive/paper.js";
 import type { FundingSnapshot } from "./types.js";
 
@@ -50,6 +51,18 @@ export class Store {
         realized_ann_pct REAL
       );
       CREATE INDEX IF NOT EXISTS idx_paper_open ON paper_positions(closed_ts);
+      CREATE TABLE IF NOT EXISTS book_impacts (
+        id INTEGER PRIMARY KEY,
+        ts INTEGER NOT NULL,
+        venue TEXT NOT NULL,
+        symbol TEXT NOT NULL,
+        mid_px REAL,
+        spread_bps REAL,
+        buy_1k REAL, buy_10k REAL, buy_100k REAL,
+        sell_1k REAL, sell_10k REAL, sell_100k REAL
+      );
+      CREATE INDEX IF NOT EXISTS idx_impact_ts ON book_impacts(ts);
+      CREATE INDEX IF NOT EXISTS idx_impact_vs_ts ON book_impacts(venue, symbol, ts);
     `);
     this.insertStmt = this.db.prepare(`
       INSERT INTO funding_snapshots
@@ -247,5 +260,42 @@ export class Store {
       ),
       winRate: n ? closed.filter((p) => (p.totalPnl ?? 0) > 0).length / n : 0,
     };
+  }
+
+  // ---- book impacts (depth / slippage) ----
+
+  insertImpacts(imps: BookImpact[]): void {
+    const stmt = this.db.prepare(`
+      INSERT INTO book_impacts
+        (ts, venue, symbol, mid_px, spread_bps, buy_1k, buy_10k, buy_100k, sell_1k, sell_10k, sell_100k)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?)`);
+    const tx = this.db.transaction((rows: BookImpact[]) => {
+      for (const i of rows)
+        stmt.run(
+          i.ts, i.venue, i.symbol, i.midPx, i.spreadBps,
+          i.buyBps[0], i.buyBps[1], i.buyBps[2],
+          i.sellBps[0], i.sellBps[1], i.sellBps[2],
+        );
+    });
+    tx(imps);
+  }
+
+  latestImpacts(): BookImpact[] {
+    const rows = this.db
+      .prepare(
+        `SELECT b.* FROM book_impacts b
+         JOIN (SELECT venue, symbol, MAX(ts) AS max_ts FROM book_impacts GROUP BY venue, symbol) m
+           ON b.venue = m.venue AND b.symbol = m.symbol AND b.ts = m.max_ts`,
+      )
+      .all() as Record<string, number>[];
+    return rows.map((r) => ({
+      ts: r.ts,
+      venue: r.venue as unknown as string,
+      symbol: r.symbol as unknown as string,
+      midPx: r.mid_px ?? null,
+      spreadBps: r.spread_bps ?? null,
+      buyBps: [r.buy_1k ?? null, r.buy_10k ?? null, r.buy_100k ?? null],
+      sellBps: [r.sell_1k ?? null, r.sell_10k ?? null, r.sell_100k ?? null],
+    }));
   }
 }

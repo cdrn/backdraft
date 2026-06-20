@@ -1,5 +1,6 @@
 import { FUNDING_POLL_INTERVAL_MS, SYMBOLS } from "./config.js";
 import { computeDispersion } from "./derive/dispersion.js";
+import { computeImpact, type BookImpact } from "./derive/impact.js";
 import { PaperLedger } from "./derive/paper.js";
 import type { Store } from "./store.js";
 import type { FundingSnapshot, FundingVenue } from "./types.js";
@@ -34,6 +35,30 @@ export function startCollector(store: Store): void {
     }
   };
 
+  // One L2 book fetch per venue/symbol → depth/slippage impact. Each fetch is
+  // isolated; a thin or failed book just drops out (the ledger falls back to
+  // flat taker fees for that leg).
+  const collectImpacts = async (ts: number): Promise<BookImpact[]> => {
+    const jobs: Promise<BookImpact | null>[] = [];
+    for (const v of venues) {
+      if (!v.fetchBook) continue;
+      for (const sym of SYMBOLS) {
+        jobs.push(
+          v
+            .fetchBook(sym)
+            .then((book) => (book ? computeImpact(book, v.name, sym, ts) : null))
+            .catch((err) => {
+              console.error(
+                `[${v.name}] book ${sym}: ${err instanceof Error ? err.message : err}`,
+              );
+              return null;
+            }),
+        );
+      }
+    }
+    return (await Promise.all(jobs)).filter((x): x is BookImpact => x !== null);
+  };
+
   let running = false;
   const tick = async () => {
     if (running) return; // skip if previous tick still in flight
@@ -44,9 +69,12 @@ export function startCollector(store: Store): void {
         console.log("[tick] no snapshots");
         return;
       }
+      const now = Date.now();
       store.insert(snaps);
+      const impacts = await collectImpacts(now);
+      if (impacts.length) store.insertImpacts(impacts);
       const board = computeDispersion(snaps);
-      paper.update(board, snaps, Date.now());
+      paper.update(board, snaps, impacts, now);
       const top = board
         .slice(0, 3)
         .map(

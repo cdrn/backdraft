@@ -130,7 +130,12 @@
     </div>
   </div>
 
-  <div class="section-head rise" style="animation-delay:.24s" style2=""><div><h2>Carry board</h2><div class="sub">best cross-venue pair per symbol</div></div></div>
+  <div class="section-head rise" style="animation-delay:.22s"><div><h2>Execution cost</h2><div class="sub">round-trip slippage to fill $10k · impact from mid, ex-fees · “thin” = book can’t fill</div></div></div>
+  <div class="panel rise" style="animation-delay:.22s; margin-bottom:14px;">
+    <table id="impact"><thead><tr id="impact-head"></tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="section-head rise" style="animation-delay:.24s"><div><h2>Carry board</h2><div class="sub">best cross-venue pair per symbol</div></div></div>
   <div class="panel rise" style="animation-delay:.24s; margin-bottom:14px;">
     <table id="board"><thead><tr>
       <th>Symbol</th><th>Position</th><th>Short fund</th><th>Long fund</th><th>Gross</th><th>Fee drag</th><th>Net carry</th>
@@ -263,6 +268,24 @@ function renderMatrix(latest){ const venues=[...new Set(latest.map(s=>s.venue))]
     const cells=vals.map(x=>x==null?`<td class="dim">—</td>`:`<td>${fmtPct(x)}</td>`).join("");
     return `<tr><td><b>${sym}</b></td>${cells}<td class="${sp>0?"pos":"dim"}">${sp==null?"—":fmtPct(sp)}</td></tr>`; }).join(""); }
 
+function renderImpact(imps){
+  const venues=[...new Set(imps.map(i=>i.venue))].sort(), syms=[...new Set(imps.map(i=>i.symbol))].sort();
+  document.getElementById("impact-head").innerHTML=`<th>Sym</th>`+venues.map(v=>`<th>${vlabel(v)}</th>`).join("");
+  const get=(sym,v)=>imps.find(i=>i.symbol===sym&&i.venue===v);
+  const tb=document.querySelector("#impact tbody");
+  if(!imps.length){ tb.innerHTML=`<tr><td class="empty">collecting book depth…</td></tr>`; return; }
+  tb.innerHTML=syms.map(sym=>{
+    const cells=venues.map(v=>{ const i=get(sym,v);
+      if(!i) return `<td class="dim">—</td>`;
+      const b=i.buyBps[1], s=i.sellBps[1]; // $10k bucket
+      if(b==null||s==null) return `<td class="neg">thin</td>`;
+      const rt=b+s, cls=rt<8?"pos":rt<25?"":"neg";
+      return `<td class="${cls}">${rt.toFixed(1)}bp</td>`;
+    }).join("");
+    return `<tr><td><b>${sym}</b></td>${cells}</tr>`;
+  }).join("");
+}
+
 function renderBoard(b){ const tb=document.querySelector("#board tbody");
   if(!b.length){tb.innerHTML=`<tr><td colspan="7" class="empty">need ≥2 venues pricing a symbol</td></tr>`;return;}
   tb.innerHTML=b.map(c=>`<tr><td><b>${c.symbol}</b></td>
@@ -287,14 +310,14 @@ let lastSnaps=null,lastBoard=null,lastPaper=null;
 function redrawCharts(){ if(!lastSnaps)return; const ns=netSeriesFromSnaps(lastSnaps); renderMultiples(ns); renderHero(lastBoard,ns); if(lastPaper)renderEquity(lastPaper); }
 
 async function refresh(){ try{
-  const [board,latest,paper,series,status]=await Promise.all([
+  const [board,latest,paper,series,impact,status]=await Promise.all([
     fetch("/api/board").then(r=>r.json()), fetch("/api/latest").then(r=>r.json()),
     fetch("/api/paper?limit=80").then(r=>r.json()), fetch(`/api/series?minutes=${state.minutes}`).then(r=>r.json()),
-    fetch("/api/status").then(r=>r.json()) ]);
+    fetch("/api/impact").then(r=>r.json()), fetch("/api/status").then(r=>r.json()) ]);
   cfg={...cfg,...status}; lastBoard=board; lastPaper=paper; lastSnaps=series;
   document.getElementById("venues").textContent=status.venues.map(v=>`${vlabel(v.name)} ${v.intervalHours}h`).join(" · ");
   document.getElementById("poll").textContent="poll "+Math.round(status.pollIntervalMs/1000)+"s";
-  renderKpis(paper); renderBoard(board); renderLedger(paper); renderMatrix(latest); redrawCharts();
+  renderKpis(paper); renderImpact(impact); renderBoard(board); renderLedger(paper); renderMatrix(latest); redrawCharts();
   document.getElementById("updated").textContent="updated "+new Date().toLocaleTimeString();
 }catch(e){ document.getElementById("live").textContent="signal lost"; } }
 

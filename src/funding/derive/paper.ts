@@ -7,6 +7,7 @@ import {
 import type { Store } from "../store.js";
 import type { FundingSnapshot } from "../types.js";
 import type { DispersionCell } from "./dispersion.js";
+import { impactAt, type BookImpact } from "./impact.js";
 
 // Carry-aware paper ledger — the honest "is this real money" test, without
 // spending any. Unlike the delta ledger (open→settle next tick, a spatial
@@ -56,12 +57,24 @@ export interface PaperStats {
   winRate: number; // fraction of closed positions net-positive
 }
 
-const taker = (v: string): number => (VENUE_TAKER_BPS[v] ?? 5) / 10_000;
-// Entry fills both legs once; the round trip is entry + exit = 2x that.
-const entryFee = (notional: number, s: string, l: string): number =>
-  notional * (taker(s) + taker(l));
-const roundTripFee = (notional: number, s: string, l: string): number =>
-  2 * entryFee(notional, s, l);
+const takerBps = (v: string): number => VENUE_TAKER_BPS[v] ?? 5;
+
+// Cost (bps of notional) to trade one leg, from the measured book where we
+// have it: impact-from-mid (spread + depth) + the exchange taker fee. If no
+// book was fetched this tick → taker only (transient, don't punish). If the
+// book exists but can't fill the size → thin=true (caller decides).
+function legFillBps(
+  imp: BookImpact | undefined,
+  venue: string,
+  side: "buy" | "sell",
+  notional: number,
+): { bps: number; thin: boolean } {
+  const t = takerBps(venue);
+  if (!imp) return { bps: t, thin: false };
+  const x = impactAt(imp, side, notional);
+  if (x === null) return { bps: t, thin: true };
+  return { bps: x + t, thin: false };
+}
 
 export class PaperLedger {
   constructor(
@@ -71,9 +84,18 @@ export class PaperLedger {
     private notional = FUNDING_PAPER_NOTIONAL,
   ) {}
 
-  update(board: DispersionCell[], snaps: FundingSnapshot[], ts: number): void {
+  update(
+    board: DispersionCell[],
+    snaps: FundingSnapshot[],
+    impacts: BookImpact[],
+    ts: number,
+  ): void {
     const snap = (venue: string, symbol: string) =>
       snaps.find((s) => s.venue === venue && s.symbol === symbol);
+    const impMap = new Map<string, BookImpact>();
+    for (const i of impacts) impMap.set(`${i.venue}|${i.symbol}`, i);
+    const imp = (venue: string, symbol: string) =>
+      impMap.get(`${venue}|${symbol}`);
 
     // 1. accrue carry on open positions, then close any whose edge compressed.
     for (const pos of this.store.openPaperPositions()) {
@@ -110,11 +132,11 @@ export class PaperLedger {
           (pos.entryShortPx - sPx) / pos.entryShortPx +
           (lPx - pos.entryLongPx) / pos.entryLongPx;
         const basisPnl = pos.notional * basisFrac;
-        const totalFee = roundTripFee(
-          pos.notional,
-          pos.shortVenue,
-          pos.longVenue,
-        );
+        // exit fills: buy back the short leg, sell the long leg.
+        const exitBps =
+          legFillBps(imp(pos.shortVenue, pos.symbol), pos.shortVenue, "buy", pos.notional).bps +
+          legFillBps(imp(pos.longVenue, pos.symbol), pos.longVenue, "sell", pos.notional).bps;
+        const totalFee = pos.feePaid + (exitBps / 10_000) * pos.notional;
         const totalPnl = pos.carryPnl + basisPnl - totalFee;
         const holdDays = (ts - pos.openedTs) / 86_400_000;
         const realizedAnnPct =
@@ -141,6 +163,13 @@ export class PaperLedger {
       const s = snap(c.shortVenue, c.symbol);
       const l = snap(c.longVenue, c.symbol);
       if (!s?.markPx || !l?.markPx) continue;
+      // entry fills: sell the short-leg venue, buy the long-leg venue. If
+      // either book exists but is too thin to fill the notional, the position
+      // isn't actually executable — don't open it.
+      const sellShort = legFillBps(imp(c.shortVenue, c.symbol), c.shortVenue, "sell", this.notional);
+      const buyLong = legFillBps(imp(c.longVenue, c.symbol), c.longVenue, "buy", this.notional);
+      if (sellShort.thin || buyLong.thin) continue;
+      const entryFee = ((sellShort.bps + buyLong.bps) / 10_000) * this.notional;
       this.store.openPaperPosition({
         symbol: c.symbol,
         shortVenue: c.shortVenue,
@@ -155,7 +184,7 @@ export class PaperLedger {
         lastAccrualTs: ts,
         lastShortAnn: s.annualizedPct,
         lastLongAnn: l.annualizedPct,
-        feePaid: entryFee(this.notional, c.shortVenue, c.longVenue),
+        feePaid: entryFee,
       });
       openSymbols.add(c.symbol);
     }
