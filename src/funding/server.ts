@@ -11,7 +11,7 @@ import {
   SYMBOLS,
   VENUE_TAKER_BPS,
 } from "./config.js";
-import { computeDispersion } from "./derive/dispersion.js";
+import { computeDispersion, injectSpot } from "./derive/dispersion.js";
 import type { Store } from "./store.js";
 
 const VENUE_META = [
@@ -35,7 +35,7 @@ export function startServer(store: Store): void {
 
     // Dispersion board: best cross-venue carry pair per symbol, net of fees.
     if (url.pathname === "/api/board")
-      return json(res, computeDispersion(store.latest()));
+      return json(res, computeDispersion(injectSpot(store.latest()), store.latestImpacts()));
 
     // Raw snapshot history for charting annualized funding per venue/symbol.
     if (url.pathname === "/api/series") {

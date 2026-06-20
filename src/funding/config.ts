@@ -43,6 +43,10 @@ export const VENUE_TAKER_BPS: Record<string, number> = {
   dydx: 5,
   okx: 5,
   paradex: 2,
+  // "spot" is the synthetic hedge leg for cash-and-carry — a flat assumption
+  // for buying/selling spot (CEX or on-chain). Depth-aware spot cost is a
+  // follow-up; for now this is the taker estimate. Tunable via env.
+  spot: Number(process.env.FUNDING_SPOT_TAKER_BPS ?? 5),
 };
 
 // Assumed hold horizon used to amortize the one-time round-trip fee into an

@@ -124,7 +124,7 @@
   </div>
 
   <div class="section-head rise" style="animation-delay:.1s">
-    <div><h2>Net carry over time</h2><div class="sub">overlay + per symbol · is the edge persistent?</div></div>
+    <div><h2>Net carry over time</h2><div class="sub">funding-dispersion trend (flat fees) · board below is depth-aware · is the edge persistent?</div></div>
     <div class="seg" id="seg-window">
       <button data-v="360">6h</button><button data-v="1440" class="on">24h</button><button data-v="4320">3d</button>
     </div>
@@ -157,7 +157,7 @@
   <div class="section-head rise" style="animation-delay:.24s"><div><h2>Carry board</h2><div class="sub" id="board-sub">best cross-venue pair per symbol</div></div></div>
   <div class="panel rise" style="animation-delay:.24s; margin-bottom:14px;">
     <table id="board"><thead><tr>
-      <th>Symbol</th><th>Position</th><th>Short fund</th><th>Long fund</th><th>Gross</th><th>Fee drag</th><th>Net carry</th>
+      <th>Symbol</th><th>Perp–perp carry</th><th>Spot-hedge (cash-and-carry)</th><th>Best</th>
     </tr></thead><tbody></tbody></table>
     <div class="note" id="board-note"></div>
   </div>
@@ -177,7 +177,7 @@
 <script>
 const SYM_COLOR = { BTC:"#e0a64b", ETH:"#3fd6a0", SOL:"#5a9fe6" };
 const PALETTE = ["#e0a64b","#3fd6a0","#5a9fe6","#c87fd6","#ef6060"];
-const VENUE_LABEL = { hyperliquid:"HL", dydx:"dYdX", okx:"OKX", paradex:"Pdx" };
+const VENUE_LABEL = { hyperliquid:"HL", dydx:"dYdX", okx:"OKX", paradex:"Pdx", spot:"Spot" };
 const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const symColor = (s) => SYM_COLOR[s] || PALETTE[Math.abs([...s].reduce((a,c)=>a+c.charCodeAt(0),0))%PALETTE.length];
 const vlabel = (v) => VENUE_LABEL[v]||v;
@@ -194,10 +194,17 @@ const netRefs = () => [
   {v:cfg.closePct,label:`close ${cfg.closePct}%`,color:css("--faint"),dash:[2,4]} ];
 const taker = (v) => (cfg.takerBps[v]??5);
 const feeAnnPct = (s,l) => (2*(taker(s)+taker(l))/100)*(365/cfg.holdDays);
-function bestPair(rows){ if(rows.length<2)return null; let hi=rows[0],lo=rows[0];
+// best-of-both net carry (matches server computeDispersion): perp–perp =
+// (hi−lo)−fee; spot-hedge = (hi−0)−fee when hi>0; take the higher.
+function bestNet(rows){
+  if(!rows.length)return null;
+  let hi=rows[0],lo=rows[0];
   for(const r of rows){ if(r.annualizedPct>hi.annualizedPct)hi=r; if(r.annualizedPct<lo.annualizedPct)lo=r; }
-  if(hi.venue===lo.venue)return null; const gross=hi.annualizedPct-lo.annualizedPct;
-  return { short:hi.venue,long:lo.venue,shortAnn:hi.annualizedPct,longAnn:lo.annualizedPct,gross,net:gross-feeAnnPct(hi.venue,lo.venue) }; }
+  let best=null;
+  if(rows.length>=2&&hi.venue!==lo.venue) best=(hi.annualizedPct-lo.annualizedPct)-feeAnnPct(hi.venue,lo.venue);
+  if(hi.annualizedPct>0){ const n=hi.annualizedPct-feeAnnPct(hi.venue,"spot"); best=best==null?n:Math.max(best,n); }
+  return best;
+}
 
 // clean line chart — autoscales to its OWN data (+refs), no glow
 function lineChart(canvas, series, opts={}) {
@@ -256,7 +263,7 @@ function netSeriesFromSnaps(snaps){
     const m=buckets.get(b); if(!m.has(s.symbol))m.set(s.symbol,[]); m.get(s.symbol).push({venue:s.venue,annualizedPct:s.annualizedPct}); }
   const out={};
   for(const [b,m] of [...buckets.entries()].sort((a,b)=>a[0]-b[0]))
-    for(const [sym,rows] of m){ const bp=bestPair(rows); if(bp)(out[sym]||=[]).push({t:b*bm,v:bp.net}); }
+    for(const [sym,rows] of m){ const n=bestNet(rows); if(n!=null)(out[sym]||=[]).push({t:b*bm,v:n}); }
   return out;
 }
 
@@ -341,14 +348,24 @@ function renderImpact(imps){
   }).join("");
 }
 
+function stratCell(st, win){
+  if(!st) return `<td class="dim">— n/a</td>`;
+  const cls = st.netAnnPct>0 ? "pos":"neg";
+  const bg = win ? ' style="box-shadow:inset 3px 0 0 var(--green)"' : '';
+  const op = win ? '' : ' style="opacity:.5"';
+  return `<td${bg}><span class="leg"><span class="s">S ${vlabel(st.shortVenue)}</span>/<span class="l">L ${vlabel(st.longVenue)}</span></span>
+    <span class="${cls} big"${op}> ${fmtPct(st.netAnnPct)}</span>
+    <div class="dim" style="font-size:10px">gross ${fmtPct(st.grossAnnPct)} · fee −${st.feeAnnPct.toFixed(0)}%</div></td>`;
+}
 function renderBoard(b){ const tb=document.querySelector("#board tbody");
-  document.getElementById("board-sub").innerHTML=`best pair per symbol · net = gross − round-trip fills amortized over a <b>${cfg.holdDays}-day hold</b>`;
-  document.getElementById("board-note").innerHTML=`<b>The ${cfg.holdDays}-day carry rule:</b> fee drag = the one-time round-trip fill (~2×taker + slippage) spread over a ${cfg.holdDays}-day hold, then annualized — so a ~19bps round trip reads as ~${(0.0019*365/cfg.holdDays*100).toFixed(0)}%/yr. A pair only clears it if gross dispersion beats that. <b>Negative net ≠ negative carry</b> — the gross funding is still positive; it just won't cover the fills on a short hold. Hold longer and the drag shrinks (≈${(0.0019*365/10*100).toFixed(0)}% at 10d, ≈${(0.0019*365/30*100).toFixed(0)}% at 30d). The ledger below uses each position's <i>actual</i> hold, not this assumption.`;
-  if(!b.length){tb.innerHTML=`<tr><td colspan="7" class="empty">need ≥2 venues pricing a symbol</td></tr>`;return;}
-  tb.innerHTML=b.map(c=>`<tr><td><b>${c.symbol}</b></td>
-    <td class="leg"><span class="s">S ${vlabel(c.shortVenue)}</span> / <span class="l">L ${vlabel(c.longVenue)}</span></td>
-    <td>${fmtPct(c.shortAnnPct)}</td><td>${fmtPct(c.longAnnPct)}</td><td>${fmtPct(c.grossAnnPct)}</td>
-    <td class="dim">−${c.feeAnnPct.toFixed(1)}%</td><td class="${c.netAnnPct>0?"pos":"neg"} big">${fmtPct(c.netAnnPct)}</td></tr>`).join(""); }
+  document.getElementById("board-sub").innerHTML=`perp–perp vs spot-hedge per symbol · net = gross − round-trip fills over a <b>${cfg.holdDays}-day hold</b>`;
+  document.getElementById("board-note").innerHTML=`<b>Two trades, same short leg.</b> <b>Perp–perp</b> longs the cheapest perp (captures the cross-venue <i>differential</i>); <b>spot-hedge</b> longs spot at 0% funding (captures the venue's <i>absolute</i> funding). Spot-hedge wins when the cheapest perp is still positive; perp–perp wins when a venue is negative (collect both legs). Spot = synthetic 0%-funding leg, flat ${cfg.takerBps&&cfg.takerBps.spot!=null?cfg.takerBps.spot:5}bps fill assumption — real spot depth is a follow-up. <b>${cfg.holdDays}-day rule:</b> fee drag = one-time round-trip fill annualized over a ${cfg.holdDays}-day hold (≈${(0.0019*365/cfg.holdDays*100).toFixed(0)}%/yr for ~19bps), so negative net = not worth a short hold, not negative carry.`;
+  if(!b.length){tb.innerHTML=`<tr><td colspan="4" class="empty">need ≥1 venue (perp–perp needs ≥2)</td></tr>`;return;}
+  tb.innerHTML=b.map(c=>`<tr>
+    <td><b>${c.symbol}</b> <span class="pill ${c.strategy==="spot"?"open":"closed"}">${c.strategy}</span></td>
+    ${stratCell(c.perp, c.strategy==="perp")}
+    ${stratCell(c.spot, c.strategy==="spot")}
+    <td class="${c.netAnnPct>0?"pos":"neg"} big">${fmtPct(c.netAnnPct)}</td></tr>`).join(""); }
 
 function renderLedger(p){ const rows=[...p.open.map(x=>({...x,_o:true})),...p.closed.map(x=>({...x,_o:false}))];
   const tb=document.querySelector("#ledger tbody");

@@ -1,5 +1,5 @@
 import { FUNDING_POLL_INTERVAL_MS, SYMBOLS } from "./config.js";
-import { computeDispersion } from "./derive/dispersion.js";
+import { computeDispersion, injectSpot } from "./derive/dispersion.js";
 import { computeImpact, type BookImpact } from "./derive/impact.js";
 import { PaperLedger } from "./derive/paper.js";
 import type { Store } from "./store.js";
@@ -73,8 +73,11 @@ export function startCollector(store: Store): void {
       store.insert(snaps);
       const impacts = await collectImpacts(now);
       if (impacts.length) store.insertImpacts(impacts);
-      const board = computeDispersion(snaps);
-      paper.update(board, snaps, impacts, now);
+      // inject a synthetic spot leg (0% funding) so the board + ledger can
+      // model the spot-hedge (cash-and-carry) trade alongside perp–perp.
+      const withSpot = injectSpot(snaps);
+      const board = computeDispersion(withSpot, impacts);
+      paper.update(board, withSpot, impacts, now);
       const top = board
         .slice(0, 3)
         .map(
