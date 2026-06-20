@@ -21,13 +21,21 @@ export const FUNDING_PUBLIC_DIR =
 export const DISPERSION_OPEN_PCT = Number(process.env.FUNDING_OPEN_PCT ?? 10);
 export const DISPERSION_CLOSE_PCT = Number(process.env.FUNDING_CLOSE_PCT ?? 4);
 
-// One-way taker fee per venue (bps of notional). A delta-neutral pair pays
-// entry+exit on BOTH legs, so round-trip cost = 2*(takerShort + takerLong).
-// Conservative public-tier estimates — revisit per venue fee schedule.
+// One-way TAKER exchange fee per venue (bps of notional), base tier. A
+// delta-neutral pair pays entry+exit on BOTH legs, so round-trip cost =
+// 2*(takerShort + takerLong). Verified base-tier figures (2026):
+//   HL taker 0.045% = 4.5bps; dYdX/OKX ~0.05% = 5bps; Paradex API ~0.02% = 2bps
+//   (retail Paradex is 0-fee; pro/API ~2bps). Maker fills are far cheaper
+//   (HL 1.5bps, OKX 2bps, dYdX ~1bp, Paradex rebate) — a patient carry would
+//   leg in maker and pay much less than this.
+// NOTE — this models EXCHANGE FEES ONLY. It excludes the bid-ask spread you
+// cross and slippage/market-impact, which on thin small venues are typically
+// the DOMINANT round-trip cost. Those need the depth model, not this table.
 export const VENUE_TAKER_BPS: Record<string, number> = {
-  hyperliquid: 2.5,
+  hyperliquid: 4.5,
   dydx: 5,
   okx: 5,
+  paradex: 2,
 };
 
 // Assumed hold horizon used to amortize the one-time round-trip fee into an
