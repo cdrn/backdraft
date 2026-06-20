@@ -18,6 +18,7 @@ const VENUE_META = [
   { name: "hyperliquid", intervalHours: 1 },
   { name: "dydx", intervalHours: 1 },
   { name: "okx", intervalHours: 8 },
+  { name: "paradex", intervalHours: 8 },
 ];
 
 function json(res: import("node:http").ServerResponse, body: unknown): void {

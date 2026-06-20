@@ -3,221 +3,155 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FUNDING · cross-venue carry scope</title>
+<title>Funding · cross-venue carry</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg:        #04070a;
-    --bg-2:      #060b0f;
-    --panel:     rgba(12,20,24,0.72);
-    --edge:      rgba(79,242,168,0.16);
-    --edge-soft: rgba(79,242,168,0.07);
-    --txt:       #dfeee9;
-    --txt-dim:   #6e8a84;
-    --txt-faint: #3f534f;
-    --phos:      #4ff2a8;   /* phosphor green: carry / live */
-    --drag:      #ff5e7a;   /* loss / cost */
-    --gold:      #ffc24b;   /* BTC */
-    --mint:      #4ff2a8;   /* ETH */
-    --ice:       #5fb3ff;   /* SOL */
-    --grid:      rgba(79,242,168,0.05);
+    --bg:#0b0d11; --panel:#13161c; --panel-2:#161a21; --edge:#232830; --edge-2:#1b2027;
+    --txt:#e7ebf0; --dim:#8b97a4; --faint:#586470;
+    --green:#2ecc8f; --red:#ef6060; --accent:#2ecc8f;
+    --btc:#e0a64b; --eth:#3fd6a0; --sol:#5a9fe6;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
-  html { -webkit-font-smoothing:antialiased; }
-  body {
-    background:
-      radial-gradient(900px 520px at 80% -8%, rgba(79,242,168,0.07), transparent 60%),
-      radial-gradient(800px 480px at 5% 108%, rgba(95,179,255,0.05), transparent 55%),
-      var(--bg);
-    color:var(--txt);
-    font-family:"JetBrains Mono",monospace;
-    font-size:13px; line-height:1.5; min-height:100vh; overflow-x:hidden;
-  }
-  /* scanlines */
-  body::before {
-    content:""; position:fixed; inset:0; z-index:60; pointer-events:none; opacity:.5;
-    background:repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.16) 2px 3px);
-    mix-blend-mode:multiply;
-  }
-  /* vignette + grain */
-  body::after {
-    content:""; position:fixed; inset:0; z-index:61; pointer-events:none;
-    background:
-      radial-gradient(120% 120% at 50% 50%, transparent 55%, rgba(0,0,0,0.55) 100%),
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
-  }
-  .wrap { position:relative; z-index:1; max-width:1280px; margin:0 auto; padding:30px 26px 90px; }
+  html { -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
+  body { background:var(--bg); color:var(--txt); font-family:"JetBrains Mono",monospace; font-size:13px; line-height:1.5; min-height:100vh; }
+  .wrap { max-width:1160px; margin:0 auto; padding:34px 28px 80px; }
 
-  /* ---- header ---- */
-  header { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; padding-bottom:16px; margin-bottom:26px;
-    border-bottom:1px solid var(--edge); }
-  .brand { display:flex; align-items:baseline; gap:14px; }
-  .brand h1 { font-family:"Chakra Petch",sans-serif; font-weight:700; font-size:27px; letter-spacing:0.06em; text-transform:uppercase;
-    color:var(--phos); text-shadow:0 0 18px rgba(79,242,168,0.45); }
-  .brand .tag { font-family:"Chakra Petch",sans-serif; font-size:10px; letter-spacing:0.34em; text-transform:uppercase; color:var(--txt-dim); }
-  .status { display:flex; gap:18px; align-items:center; font-family:"Chakra Petch",sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:0.18em; color:var(--txt-dim); }
-  .dot { display:inline-flex; align-items:center; gap:7px; color:var(--phos); }
-  .dot::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--phos); box-shadow:0 0 12px var(--phos); animation:pulse 2.4s ease-in-out infinite; }
-  @keyframes pulse { 50% { opacity:.25; } }
+  header { display:flex; align-items:center; justify-content:space-between; gap:20px; padding-bottom:18px; margin-bottom:24px; border-bottom:1px solid var(--edge); }
+  .brand { display:flex; align-items:baseline; gap:13px; }
+  .brand h1 { font-family:"Archivo",sans-serif; font-weight:700; font-size:21px; letter-spacing:-0.01em; }
+  .brand .tag { font-family:"Archivo",sans-serif; font-size:11px; color:var(--faint); letter-spacing:0.02em; }
+  .status { display:flex; gap:16px; align-items:center; font-size:11px; color:var(--dim); }
+  .dot { display:inline-flex; align-items:center; gap:7px; color:var(--green); }
+  .dot::before { content:""; width:6px; height:6px; border-radius:50%; background:var(--green); }
 
-  /* panels with bezel corners */
-  .panel { position:relative; background:var(--panel); border:1px solid var(--edge); border-radius:12px;
-    backdrop-filter:blur(3px); box-shadow:inset 0 1px 0 rgba(255,255,255,0.03), 0 14px 40px -24px rgba(0,0,0,0.9); }
-  .panel::before, .panel::after { content:""; position:absolute; width:9px; height:9px; border-color:var(--phos); opacity:.5; }
-  .panel::before { top:7px; left:7px; border-top:1px solid; border-left:1px solid; }
-  .panel::after  { bottom:7px; right:7px; border-bottom:1px solid; border-right:1px solid; }
+  .panel { background:var(--panel); border:1px solid var(--edge); border-radius:10px; }
   .pad { padding:18px 20px; }
-  h2 { font-family:"Chakra Petch",sans-serif; font-weight:600; font-size:15px; letter-spacing:0.04em; }
-  .sub { font-family:"Chakra Petch",sans-serif; font-size:9.5px; text-transform:uppercase; letter-spacing:0.2em; color:var(--txt-faint); margin-top:3px; }
+  h2 { font-family:"Archivo",sans-serif; font-weight:600; font-size:14px; }
+  .sub { font-size:10px; text-transform:uppercase; letter-spacing:0.13em; color:var(--faint); margin-top:3px; }
+  .lbl { font-family:"Archivo",sans-serif; font-size:9.5px; text-transform:uppercase; letter-spacing:0.15em; color:var(--faint); }
 
-  /* reveal on load */
-  .rise { opacity:0; transform:translateY(14px); animation:rise .7s cubic-bezier(.2,.7,.2,1) forwards; }
+  .rise { opacity:0; transform:translateY(8px); animation:rise .5s ease forwards; }
   @keyframes rise { to { opacity:1; transform:none; } }
 
-  /* ---- top: hero + kpis ---- */
-  .top { display:grid; grid-template-columns:1.18fr 1fr; gap:16px; margin-bottom:16px; }
-  .hero { display:flex; flex-direction:column; justify-content:space-between; overflow:hidden;
-    box-shadow:inset 0 0 60px -20px rgba(79,242,168,0.25), 0 14px 40px -24px rgba(0,0,0,.9); }
-  .hero .lead { display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; margin-top:4px; }
-  .hero .sym { font-family:"Chakra Petch",sans-serif; font-weight:700; font-size:34px; letter-spacing:0.04em; }
-  .hero .figure { font-family:"JetBrains Mono",monospace; font-weight:800; font-size:70px; line-height:.9; letter-spacing:-0.03em; }
-  .hero .figure.pos { color:var(--phos); text-shadow:0 0 30px rgba(79,242,168,0.5); }
-  .hero .figure.neg { color:var(--drag); text-shadow:0 0 30px rgba(255,94,122,0.45); }
-  .hero .legs { font-size:12px; color:var(--txt-dim); margin-top:8px; }
-  .hero .legs .s { color:var(--drag); } .hero .legs .l { color:var(--phos); }
-  .hero .spark { margin-top:12px; position:relative; }
+  .top { display:grid; grid-template-columns:1.1fr 1fr; gap:14px; margin-bottom:14px; }
+  .hero { display:flex; flex-direction:column; justify-content:space-between; }
+  .hero .lead { display:flex; align-items:baseline; gap:13px; flex-wrap:wrap; margin-top:6px; }
+  .hero .sym { font-family:"Archivo",sans-serif; font-weight:700; font-size:26px; }
+  .hero .figure { font-family:"JetBrains Mono",monospace; font-weight:700; font-size:52px; line-height:.95; letter-spacing:-0.03em; }
+  .hero .figure.pos { color:var(--green); } .hero .figure.neg { color:var(--red); }
+  .hero .legs { font-size:11.5px; color:var(--dim); margin-top:9px; }
+  .hero .legs .s { color:var(--red); } .hero .legs .l { color:var(--green); }
+  .hero .spark { margin-top:10px; }
 
-  .kpis { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--edge-soft); border:1px solid var(--edge); border-radius:12px; overflow:hidden; }
-  .kpi { background:var(--panel); padding:15px 17px; }
-  .kpi .k { font-family:"Chakra Petch",sans-serif; font-size:9px; text-transform:uppercase; letter-spacing:0.18em; color:var(--txt-faint); }
-  .kpi .v { font-family:"JetBrains Mono",monospace; font-weight:700; font-size:26px; margin-top:5px; letter-spacing:-0.02em; }
-  .kpi .v.pos { color:var(--phos); } .kpi .v.neg { color:var(--drag); }
-  .kpi .d { font-size:10px; color:var(--txt-dim); margin-top:3px; }
+  .kpis { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--edge); border:1px solid var(--edge); border-radius:10px; overflow:hidden; }
+  .kpi { background:var(--panel); padding:14px 16px; }
+  .kpi .v { font-family:"JetBrains Mono",monospace; font-weight:700; font-size:24px; margin-top:5px; letter-spacing:-0.02em; }
+  .kpi .v.pos { color:var(--green); } .kpi .v.neg { color:var(--red); }
+  .kpi .d { font-size:10px; color:var(--dim); margin-top:3px; }
 
-  /* ---- chart frame ---- */
-  .chart-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px 4px; flex-wrap:wrap; gap:10px; }
-  .legend { display:flex; gap:15px; flex-wrap:wrap; font-size:11px; }
-  .legend .it { display:inline-flex; align-items:center; gap:7px; color:var(--txt-dim); }
-  .legend .swatch { width:15px; height:3px; border-radius:2px; box-shadow:0 0 8px currentColor; }
-  .legend .val { color:var(--txt); font-weight:500; }
-  .seg { display:flex; border:1px solid var(--edge); border-radius:8px; overflow:hidden; }
-  .seg button { font-family:"Chakra Petch",sans-serif; font-size:11px; padding:5px 13px; border:none; background:transparent; color:var(--txt-dim); cursor:pointer; border-right:1px solid var(--edge); transition:.14s; letter-spacing:0.04em; }
+  .seg { display:flex; border:1px solid var(--edge); border-radius:7px; overflow:hidden; }
+  .seg button { font-family:"JetBrains Mono",monospace; font-size:11px; padding:5px 12px; border:none; background:transparent; color:var(--dim); cursor:pointer; border-right:1px solid var(--edge); transition:.12s; }
   .seg button:last-child { border-right:none; }
-  .seg button:hover { color:var(--txt); background:rgba(79,242,168,0.06); }
-  .seg button.on { background:var(--phos); color:#04130c; font-weight:700; box-shadow:0 0 16px -2px var(--phos); }
-  .scope { position:relative; padding:6px 14px 14px; }
+  .seg button:hover { color:var(--txt); }
+  .seg button.on { background:var(--accent); color:#06231a; font-weight:600; }
+
+  .section-head { display:flex; align-items:center; justify-content:space-between; margin:0 2px 12px; }
+
+  /* small multiples */
+  .multiples { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:14px; }
+  .mini { padding:14px 16px 8px; }
+  .mini .mhead { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:2px; }
+  .mini .msym { font-family:"Archivo",sans-serif; font-weight:600; font-size:13px; }
+  .mini .mval { font-family:"JetBrains Mono",monospace; font-weight:700; font-size:18px; letter-spacing:-0.02em; }
+  .mini .mval.pos { color:var(--green); } .mini .mval.neg { color:var(--red); }
+  .mini .mleg { font-size:10px; color:var(--faint); margin-bottom:6px; }
+
+  .twocol { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
   canvas { display:block; width:100%; }
-  /* phosphor sweep */
-  .scope .sweep { position:absolute; top:6px; bottom:14px; left:60px; width:90px; pointer-events:none;
-    background:linear-gradient(90deg, transparent, rgba(79,242,168,0.10) 60%, rgba(79,242,168,0.22)); mix-blend-mode:screen;
-    animation:sweep 7s linear infinite; }
-  @keyframes sweep { 0% { transform:translateX(0); opacity:0; } 8%{opacity:1;} 92%{opacity:1;} 100% { transform:translateX(calc(100% + 1040px)); opacity:0; } }
-  #tooltip { position:absolute; z-index:30; pointer-events:none; background:rgba(4,12,10,0.95); border:1px solid var(--edge);
-    border-radius:8px; padding:8px 10px; font-size:11px; display:none; box-shadow:0 8px 24px -10px #000; min-width:120px; }
-  #tooltip .tt-t { color:var(--txt-faint); font-size:9px; text-transform:uppercase; letter-spacing:0.14em; margin-bottom:5px; }
-  #tooltip .tt-r { display:flex; justify-content:space-between; gap:14px; }
-  #tooltip .tt-r .nm { display:inline-flex; align-items:center; gap:6px; color:var(--txt-dim); }
-  #tooltip .tt-r .nm i { width:9px; height:3px; border-radius:2px; display:inline-block; }
-  #tooltip .tt-r .vv { color:var(--txt); font-weight:600; }
+  .chart-wrap { padding:8px 6px 4px; }
 
-  .twocol { display:grid; grid-template-columns:1.55fr 1fr; gap:16px; margin:16px 0; }
-
-  /* tables */
   table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
-  th { font-family:"Chakra Petch",sans-serif; font-size:9px; text-transform:uppercase; letter-spacing:0.16em; color:var(--txt-faint);
-    text-align:right; padding:10px 13px; border-bottom:1px solid var(--edge); font-weight:500; }
+  th { font-family:"Archivo",sans-serif; font-size:9.5px; text-transform:uppercase; letter-spacing:0.13em; color:var(--faint); text-align:right; padding:10px 13px; border-bottom:1px solid var(--edge); font-weight:600; }
   th:first-child, td:first-child { text-align:left; }
-  td { padding:11px 13px; text-align:right; border-bottom:1px solid var(--edge-soft); font-size:12px; }
-  tbody tr { transition:background .12s; } tbody tr:hover { background:rgba(79,242,168,0.05); }
-  td.pos { color:var(--phos); } td.neg { color:var(--drag); } td.dim { color:var(--txt-faint); }
-  .big { font-size:15px; font-weight:700; }
-  .leg .s { color:var(--drag); } .leg .l { color:var(--phos); }
-  .pill { font-family:"Chakra Petch",sans-serif; font-size:8.5px; padding:3px 8px; border-radius:20px; text-transform:uppercase; letter-spacing:0.1em; }
-  .pill.open { background:rgba(79,242,168,0.15); color:var(--phos); box-shadow:0 0 12px -4px var(--phos); }
-  .pill.closed { background:rgba(110,138,132,0.14); color:var(--txt-dim); }
-  .empty { text-align:center; color:var(--txt-faint); padding:24px; }
-  .sec { font-family:"Chakra Petch",sans-serif; font-weight:600; font-size:14px; letter-spacing:0.05em; text-transform:uppercase; color:var(--txt-dim); padding:2px 4px 10px; }
-  .sec b { color:var(--phos); }
-  .note { font-size:10px; color:var(--txt-faint); padding:11px 20px 16px; line-height:1.6; }
+  td { padding:10px 13px; text-align:right; border-bottom:1px solid var(--edge-2); font-size:12px; }
+  tbody tr:last-child td { border-bottom:none; }
+  tbody tr:hover { background:var(--panel-2); }
+  td.pos { color:var(--green); } td.neg { color:var(--red); } td.dim { color:var(--faint); }
+  .big { font-size:14px; font-weight:600; }
+  .leg .s { color:var(--red); } .leg .l { color:var(--green); }
+  .pill { font-family:"Archivo",sans-serif; font-size:9px; padding:2px 8px; border-radius:5px; text-transform:uppercase; letter-spacing:0.06em; font-weight:600; }
+  .pill.open { background:rgba(46,204,143,0.15); color:var(--green); }
+  .pill.closed { background:rgba(139,151,164,0.12); color:var(--dim); }
+  .empty { text-align:center; color:var(--faint); padding:22px; }
+  .note { font-size:10px; color:var(--faint); padding:12px 20px 14px; line-height:1.6; }
 
-  footer { margin-top:34px; padding-top:14px; border-top:1px solid var(--edge); display:flex; justify-content:space-between;
-    font-family:"Chakra Petch",sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:0.14em; color:var(--txt-faint); }
-
-  @media (max-width:880px) { .top,.twocol { grid-template-columns:1fr; } .hero .figure{font-size:54px;} }
+  footer { margin-top:30px; padding-top:14px; border-top:1px solid var(--edge); display:flex; justify-content:space-between; font-size:10px; color:var(--faint); }
+  @media (max-width:860px){ .top,.twocol{grid-template-columns:1fr;} .multiples{grid-template-columns:1fr;} }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header class="rise" style="animation-delay:0s">
-    <div class="brand"><h1>Funding</h1><span class="tag">cross-venue carry scope</span></div>
-    <div class="status"><span id="venues">HL · dYdX · OKX</span><span id="poll">—</span><span class="dot" id="live">live</span></div>
+  <header class="rise">
+    <div class="brand"><h1>Funding</h1><span class="tag">cross-venue carry</span></div>
+    <div class="status"><span id="venues">—</span><span id="poll">—</span><span class="dot" id="live">live</span></div>
   </header>
 
   <div class="top">
-    <div class="panel pad hero rise" style="animation-delay:.05s">
+    <div class="panel pad hero rise" style="animation-delay:.04s">
       <div>
-        <div class="sub">best net carry now</div>
+        <div class="lbl">best net carry now</div>
         <div class="lead"><span class="sym" id="hero-sym">—</span><span class="figure" id="hero-net">—</span></div>
         <div class="legs" id="hero-legs"></div>
       </div>
-      <div class="spark"><canvas id="cv-spark" height="58"></canvas></div>
+      <div class="spark"><canvas id="cv-spark" height="50"></canvas></div>
     </div>
-    <div class="kpis rise" id="kpis" style="animation-delay:.1s"></div>
+    <div class="kpis rise" id="kpis" style="animation-delay:.08s"></div>
   </div>
 
-  <div class="panel rise" style="animation-delay:.15s; margin-bottom:16px;">
-    <div class="chart-head">
-      <div><h2>Net carry over time</h2><div class="sub">is the edge persistent, or just a spike?</div></div>
-      <div style="display:flex; gap:14px; align-items:center;">
-        <span class="legend" id="chart-legend"></span>
-        <div class="seg" id="seg-window">
-          <button data-v="360">6h</button><button data-v="1440" class="on">24h</button><button data-v="4320">3d</button>
-        </div>
-      </div>
+  <div class="section-head rise" style="animation-delay:.1s">
+    <div><h2>Net carry over time</h2><div class="sub">per symbol · is the edge persistent?</div></div>
+    <div class="seg" id="seg-window">
+      <button data-v="360">6h</button><button data-v="1440" class="on">24h</button><button data-v="4320">3d</button>
     </div>
-    <div class="scope" id="scope-net">
-      <span class="sweep"></span>
-      <canvas id="cv-net" height="310"></canvas>
-      <div id="tooltip"></div>
-    </div>
-    <div class="note">annualized net carry per symbol — gross funding spread minus round-trip fills amortized over the assumed hold. Solid line = open threshold, dotted = close. Above open is a tradeable pair; how long it <i>stays</i> there is the edge. Hover to read values.</div>
   </div>
+  <div class="multiples rise" id="multiples" style="animation-delay:.12s"></div>
 
   <div class="twocol">
-    <div class="panel rise" style="animation-delay:.2s">
-      <div class="chart-head"><div><h2>Paper equity</h2><div class="sub">cumulative realized net · closed positions</div></div></div>
-      <div class="scope"><canvas id="cv-equity" height="220"></canvas></div>
+    <div class="panel rise" style="animation-delay:.16s">
+      <div class="pad" style="padding-bottom:0"><h2>Paper equity</h2><div class="sub">cumulative realized net · closed positions</div></div>
+      <div class="chart-wrap"><canvas id="cv-equity" height="180"></canvas></div>
     </div>
-    <div class="panel rise" style="animation-delay:.25s">
-      <div class="chart-head"><div><h2>Funding matrix</h2><div class="sub">annualized %, by venue</div></div></div>
-      <table id="matrix"><thead><tr id="matrix-head"></tr></thead><tbody></tbody></table>
+    <div class="panel rise" style="animation-delay:.2s">
+      <div class="pad" style="padding-bottom:0"><h2>Funding matrix</h2><div class="sub">annualized %, by venue</div></div>
+      <table id="matrix" style="margin-top:10px"><thead><tr id="matrix-head"></tr></thead><tbody></tbody></table>
     </div>
   </div>
 
-  <div class="sec">Carry board — best cross-venue pair per <b>symbol</b></div>
-  <div class="panel rise" style="animation-delay:.3s; margin-bottom:16px;">
+  <div class="section-head rise" style="animation-delay:.24s" style2=""><div><h2>Carry board</h2><div class="sub">best cross-venue pair per symbol</div></div></div>
+  <div class="panel rise" style="animation-delay:.24s; margin-bottom:14px;">
     <table id="board"><thead><tr>
       <th>Symbol</th><th>Position</th><th>Short fund</th><th>Long fund</th><th>Gross</th><th>Fee drag</th><th>Net carry</th>
     </tr></thead><tbody></tbody></table>
   </div>
 
-  <div class="sec">Paper ledger — <b>open</b> + recent closed</div>
-  <div class="panel rise" style="animation-delay:.35s">
+  <div class="section-head rise" style="animation-delay:.28s"><div><h2>Paper ledger</h2><div class="sub">open + recent closed</div></div></div>
+  <div class="panel rise" style="animation-delay:.28s">
     <table id="ledger"><thead><tr>
       <th>Symbol</th><th>Position</th><th>Status</th><th>Hold</th><th>Carry $</th><th>Basis $</th><th>Fees $</th><th>Net $</th><th>Ann %</th>
     </tr></thead><tbody></tbody></table>
-    <div class="note">opens delta-neutral when net clears the threshold; accrues funding each tick at observed rates; closes when the spread compresses. <b>Net</b> = carry + basis − round-trip fills. Models neither own market impact nor non-atomic fills — a ceiling, not a promise.</div>
+    <div class="note">opens delta-neutral when net clears the threshold; accrues funding each tick at observed rates; closes when the spread compresses. Net = carry + basis − round-trip fills. Models neither own market impact nor non-atomic fills — a ceiling, not a promise.</div>
   </div>
 
   <footer><span>backdraft · funding instrument</span><span id="updated"></span></footer>
 </div>
 
 <script>
-const SYM_COLOR = { BTC:"#ffc24b", ETH:"#4ff2a8", SOL:"#5fb3ff" };
-const PALETTE = ["#ffc24b","#4ff2a8","#5fb3ff","#e479ff","#ff5e7a"];
-const VENUE_LABEL = { hyperliquid:"HL", dydx:"dYdX", okx:"OKX" };
+const SYM_COLOR = { BTC:"#e0a64b", ETH:"#3fd6a0", SOL:"#5a9fe6" };
+const PALETTE = ["#e0a64b","#3fd6a0","#5a9fe6","#c87fd6","#ef6060"];
+const VENUE_LABEL = { hyperliquid:"HL", dydx:"dYdX", okx:"OKX", paradex:"Pdx" };
 const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const symColor = (s) => SYM_COLOR[s] || PALETTE[Math.abs([...s].reduce((a,c)=>a+c.charCodeAt(0),0))%PALETTE.length];
 const vlabel = (v) => VENUE_LABEL[v]||v;
@@ -234,55 +168,52 @@ function bestPair(rows){ if(rows.length<2)return null; let hi=rows[0],lo=rows[0]
   if(hi.venue===lo.venue)return null; const gross=hi.annualizedPct-lo.annualizedPct;
   return { short:hi.venue,long:lo.venue,shortAnn:hi.annualizedPct,longAnn:lo.annualizedPct,gross,net:gross-feeAnnPct(hi.venue,lo.venue) }; }
 
-// ---- phosphor line chart (returns geometry for crosshair) ----
+// clean line chart — autoscales to its OWN data (+refs), no glow
 function lineChart(canvas, series, opts={}) {
   const dpr=window.devicePixelRatio||1, w=canvas.clientWidth, h=canvas.clientHeight;
   canvas.width=w*dpr; canvas.height=h*dpr; const ctx=canvas.getContext("2d"); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h);
-  const padL=52,padR=14,padT=14,padB=22, x0=padL,x1=w-padR,y0=padT,y1=h-padB;
-  const all=series.flatMap(s=>s.points.map(p=>p.v)); if(opts.refs)all.push(...opts.refs.map(r=>r.v));
-  let lo=Math.min(0,...all),hi=Math.max(...all,1); if(!isFinite(lo)||!isFinite(hi)){lo=0;hi=1;}
-  const pv=(hi-lo)*0.14||1; lo-=pv; hi+=pv;
+  const padL=opts.compact?34:46, padR=12, padT=10, padB=18, x0=padL,x1=w-padR,y0=padT,y1=h-padB;
+  const all=series.flatMap(s=>s.points.map(p=>p.v));
+  const refsIn=(opts.refs||[]).filter(r=>r.soft!==true).map(r=>r.v);
+  all.push(...refsIn);
+  let lo=Math.min(...all), hi=Math.max(...all);
+  if(!isFinite(lo)||!isFinite(hi)){lo=0;hi=1;}
+  if(lo===hi){lo-=1;hi+=1;}
+  const pv=(hi-lo)*0.16; lo-=pv; hi+=pv;
   const now=Date.now(), t0=now-state.minutes*60000;
   const X=t=>x0+((t-t0)/(now-t0))*(x1-x0), Y=v=>y1-((v-lo)/(hi-lo))*(y1-y0);
-  if(lo<0&&hi>0){ ctx.fillStyle="rgba(79,242,168,0.045)"; ctx.fillRect(x0,y0,x1-x0,Y(0)-y0); }
-  ctx.font="10px 'JetBrains Mono'"; ctx.textBaseline="middle";
-  for(let i=0;i<=4;i++){ const v=lo+(hi-lo)*i/4,y=Y(v);
-    ctx.strokeStyle=css("--grid"); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke();
-    ctx.fillStyle=css("--txt-faint"); ctx.textAlign="right"; ctx.fillText(opts.pct?(v>=0?"+":"")+v.toFixed(0)+"%":v.toFixed(0), x0-9, y); }
-  for(const r of (opts.refs||[])){ const y=Y(r.v);
-    ctx.strokeStyle=r.color; ctx.lineWidth=1; ctx.setLineDash(r.dash||[5,4]); ctx.globalAlpha=.7; ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
-    ctx.fillStyle=r.color; ctx.textAlign="left"; if(r.label)ctx.fillText(r.label,x0+5,y-8); }
-  if(series.some(s=>s.points.length)){
-    for(const s of series){ if(!s.points.length)continue;
-      if(s.fill){ ctx.beginPath(); s.points.forEach((p,i)=>{const x=X(p.t),y=Y(p.v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
-        ctx.lineTo(X(s.points.at(-1).t),Y(lo)); ctx.lineTo(X(s.points[0].t),Y(lo)); ctx.closePath();
-        const g=ctx.createLinearGradient(0,y0,0,y1); g.addColorStop(0,s.color+"38"); g.addColorStop(1,s.color+"00"); ctx.fillStyle=g; ctx.fill(); }
-      // glow pass
-      ctx.save(); ctx.shadowColor=s.color; ctx.shadowBlur=10; ctx.strokeStyle=s.color; ctx.lineWidth=s.width||2; ctx.lineJoin="round";
-      ctx.beginPath(); s.points.forEach((p,i)=>{const x=X(p.t),y=Y(p.v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}); ctx.stroke(); ctx.restore();
-      const last=s.points.at(-1); ctx.save(); ctx.shadowColor=s.color; ctx.shadowBlur=12; ctx.fillStyle=s.color;
-      ctx.beginPath(); ctx.arc(X(last.t),Y(last.v),3,0,7); ctx.fill(); ctx.restore(); }
-  } else { ctx.fillStyle=css("--txt-faint"); ctx.textAlign="center"; ctx.fillText("collecting…",(x0+x1)/2,(y0+y1)/2); }
-  // crosshair
-  if(opts.hoverPx!=null && opts.hoverPx>=x0 && opts.hoverPx<=x1){
-    ctx.strokeStyle="rgba(223,238,233,0.25)"; ctx.lineWidth=1; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(opts.hoverPx,y0); ctx.lineTo(opts.hoverPx,y1); ctx.stroke(); ctx.setLineDash([]); }
-  return { x0,x1,y0,y1,X,Y,t0,now };
+  ctx.font="9px 'JetBrains Mono'"; ctx.textBaseline="middle";
+  const ticks=opts.compact?3:4;
+  for(let i=0;i<=ticks;i++){ const v=lo+(hi-lo)*i/ticks, y=Y(v);
+    ctx.strokeStyle=css("--edge-2"); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke();
+    ctx.fillStyle=css("--faint"); ctx.textAlign="right"; ctx.fillText(opts.pct?(v>=0?"+":"")+v.toFixed(0):v.toFixed(0), x0-7, y); }
+  for(const r of (opts.refs||[])){ if(r.v<lo||r.v>hi)continue; const y=Y(r.v);
+    ctx.strokeStyle=r.color; ctx.globalAlpha=.6; ctx.lineWidth=1; ctx.setLineDash(r.dash||[4,4]); ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
+    if(r.label){ ctx.fillStyle=r.color; ctx.textAlign="left"; ctx.fillText(r.label,x0+4,y-7); } }
+  if(!series.some(s=>s.points.length)){ ctx.fillStyle=css("--faint"); ctx.textAlign="center"; ctx.fillText("collecting…",(x0+x1)/2,(y0+y1)/2); return; }
+  for(const s of series){ if(!s.points.length)continue;
+    if(s.fill){ ctx.beginPath(); s.points.forEach((p,i)=>{const x=X(p.t),y=Y(p.v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+      ctx.lineTo(X(s.points.at(-1).t),Y(lo)); ctx.lineTo(X(s.points[0].t),Y(lo)); ctx.closePath();
+      const g=ctx.createLinearGradient(0,y0,0,y1); g.addColorStop(0,s.color+"26"); g.addColorStop(1,s.color+"00"); ctx.fillStyle=g; ctx.fill(); }
+    ctx.strokeStyle=s.color; ctx.lineWidth=s.width||1.7; ctx.lineJoin="round";
+    ctx.beginPath(); s.points.forEach((p,i)=>{const x=X(p.t),y=Y(p.v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}); ctx.stroke();
+    const last=s.points.at(-1); ctx.fillStyle=s.color; ctx.beginPath(); ctx.arc(X(last.t),Y(last.v),2.4,0,7); ctx.fill(); }
 }
 function sparkline(canvas, pts, color){
   const dpr=window.devicePixelRatio||1,w=canvas.clientWidth,h=canvas.clientHeight;
   canvas.width=w*dpr; canvas.height=h*dpr; const ctx=canvas.getContext("2d"); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h);
   if(pts.length<2)return; const vs=pts.map(p=>p.v); let lo=Math.min(...vs),hi=Math.max(...vs); if(hi===lo){hi+=1;lo-=1;}
-  const X=i=>(i/(pts.length-1))*w, Y=v=>h-3-((v-lo)/(hi-lo))*(h-6);
+  const X=i=>(i/(pts.length-1))*w, Y=v=>h-2-((v-lo)/(hi-lo))*(h-4);
   ctx.beginPath(); pts.forEach((p,i)=>{const x=X(i),y=Y(p.v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}); ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
-  const g=ctx.createLinearGradient(0,0,0,h); g.addColorStop(0,color+"40"); g.addColorStop(1,color+"00"); ctx.fillStyle=g; ctx.fill();
-  ctx.save(); ctx.shadowColor=color; ctx.shadowBlur=9; ctx.strokeStyle=color; ctx.lineWidth=1.8; ctx.lineJoin="round";
-  ctx.beginPath(); pts.forEach((p,i)=>{const x=X(i),y=Y(p.v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}); ctx.stroke(); ctx.restore();
+  const g=ctx.createLinearGradient(0,0,0,h); g.addColorStop(0,color+"2e"); g.addColorStop(1,color+"00"); ctx.fillStyle=g; ctx.fill();
+  ctx.strokeStyle=color; ctx.lineWidth=1.6; ctx.lineJoin="round";
+  ctx.beginPath(); pts.forEach((p,i)=>{const x=X(i),y=Y(p.v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}); ctx.stroke();
 }
 
 function netSeriesFromSnaps(snaps){
   const bm=cfg.pollIntervalMs, buckets=new Map();
   for(const s of snaps){ const b=Math.round(s.ts/bm); if(!buckets.has(b))buckets.set(b,new Map());
-    const m=buckets.get(b); (m.get(s.symbol)||m.set(s.symbol,[]).get(s.symbol)).push({venue:s.venue,annualizedPct:s.annualizedPct}); }
+    const m=buckets.get(b); if(!m.has(s.symbol))m.set(s.symbol,[]); m.get(s.symbol).push({venue:s.venue,annualizedPct:s.annualizedPct}); }
   const out={};
   for(const [b,m] of [...buckets.entries()].sort((a,b)=>a[0]-b[0]))
     for(const [sym,rows] of m){ const bp=bestPair(rows); if(bp)(out[sym]||=[]).push({t:b*bm,v:bp.net}); }
@@ -297,24 +228,31 @@ function renderHero(board, ns){ const best=board[0]; if(!best)return;
 
 function renderKpis(p){ const s=p.stats;
   document.getElementById("kpis").innerHTML=`
-    <div class="kpi"><div class="k">open positions</div><div class="v">${s.open}</div><div class="d">unreal ${fmtUsd(s.openUnrealizedUsd)}</div></div>
-    <div class="kpi"><div class="k">closed net</div><div class="v ${s.closedNetUsd>=0?"pos":"neg"}">${fmtUsd(s.closedNetUsd)}</div><div class="d">${s.closed} trips</div></div>
-    <div class="kpi"><div class="k">mean realized</div><div class="v ${s.meanRealizedAnnPct>=0?"pos":"neg"}">${fmtPct(s.meanRealizedAnnPct)}</div><div class="d">${s.meanHoldDays.toFixed(2)}d hold</div></div>
-    <div class="kpi"><div class="k">win rate</div><div class="v">${(s.winRate*100).toFixed(0)}%</div><div class="d">carry ${fmtUsd(s.closedCarryUsd)} · fees ${fmtUsd(-s.closedFeesUsd)}</div></div>`; }
+    <div class="kpi"><div class="lbl">open positions</div><div class="v">${s.open}</div><div class="d">unreal ${fmtUsd(s.openUnrealizedUsd)}</div></div>
+    <div class="kpi"><div class="lbl">closed net</div><div class="v ${s.closedNetUsd>=0?"pos":"neg"}">${fmtUsd(s.closedNetUsd)}</div><div class="d">${s.closed} trips</div></div>
+    <div class="kpi"><div class="lbl">mean realized</div><div class="v ${s.meanRealizedAnnPct>=0?"pos":"neg"}">${fmtPct(s.meanRealizedAnnPct)}</div><div class="d">${s.meanHoldDays.toFixed(2)}d hold</div></div>
+    <div class="kpi"><div class="lbl">win rate</div><div class="v">${(s.winRate*100).toFixed(0)}%</div><div class="d">carry ${fmtUsd(s.closedCarryUsd)} · fees ${fmtUsd(-s.closedFeesUsd)}</div></div>`; }
 
-let netGeom=null, netSeriesCache=null;
-function renderNetChart(ns){ const syms=Object.keys(ns).sort(); netSeriesCache=syms.map(s=>({sym:s,points:ns[s],color:symColor(s)}));
-  drawNet();
-  document.getElementById("chart-legend").innerHTML=syms.map(s=>{const last=ns[s].at(-1);
-    return `<span class="it"><span class="swatch" style="background:${symColor(s)};color:${symColor(s)}"></span>${s} <span class="val">${last?fmtPct(last.v):"—"}</span></span>`;}).join(""); }
-function drawNet(hoverPx){ if(!netSeriesCache)return;
-  netGeom=lineChart(document.getElementById("cv-net"), netSeriesCache.map(s=>({points:s.points,color:s.color})),
-    { pct:true, hoverPx, refs:[ {v:cfg.openPct,label:`open ${cfg.openPct}%`,color:css("--phos"),dash:[7,0]},
-      {v:cfg.closePct,label:`close ${cfg.closePct}%`,color:css("--txt-dim"),dash:[2,4]} ] }); }
+// small multiples — one mini net-carry chart per symbol, each its own scale
+function renderMultiples(ns){
+  const syms=Object.keys(ns).sort(); const host=document.getElementById("multiples");
+  if(!syms.length){ host.innerHTML=`<div class="panel pad empty" style="grid-column:1/-1">collecting…</div>`; return; }
+  host.innerHTML=syms.map(s=>{ const last=ns[s].at(-1)?.v;
+    return `<div class="panel mini">
+      <div class="mhead"><span class="msym" style="color:${symColor(s)}">${s}</span><span class="mval ${last>0?"pos":"neg"}">${fmtPct(last)}</span></div>
+      <div class="mleg">net carry · open ${cfg.openPct}% / close ${cfg.closePct}%</div>
+      <canvas id="mc-${s}" height="120"></canvas></div>`; }).join("");
+  for(const s of syms){
+    lineChart(document.getElementById("mc-"+s), [{points:ns[s],color:symColor(s),fill:symColor(s)}],
+      { pct:true, compact:true, refs:[
+        {v:cfg.openPct,label:`open`,color:css("--green"),dash:[5,0]},
+        {v:cfg.closePct,label:``,color:css("--faint"),dash:[2,4]} ] });
+  }
+}
 
 function renderEquity(p){ const closed=[...p.closed].filter(x=>x.closedTs).sort((a,b)=>a.closedTs-b.closedTs);
   let c=0; const pts=closed.map(x=>({t:x.closedTs,v:(c+=x.totalPnl)}));
-  lineChart(document.getElementById("cv-equity"), [{points:pts,color:css("--phos"),fill:css("--phos")}],
+  lineChart(document.getElementById("cv-equity"), [{points:pts,color:css("--green"),fill:css("--green")}],
     { refs:[{v:0,label:"",color:css("--edge"),dash:[3,3]}] }); }
 
 function renderMatrix(latest){ const venues=[...new Set(latest.map(s=>s.venue))].sort(), syms=[...new Set(latest.map(s=>s.symbol))].sort();
@@ -345,25 +283,8 @@ function renderLedger(p){ const rows=[...p.open.map(x=>({...x,_o:true})),...p.cl
       <td class="dim">${fmtUsd(-fees)}</td><td class="${usdCls(net)} big">${fmtUsd(net)}</td>
       <td class="${ann==null?"dim":usdCls(ann)}">${ann==null?"live":fmtPct(ann)}</td></tr>`; }).join(""); }
 
-// crosshair tooltip on net chart
-const scope=document.getElementById("scope-net"), tip=document.getElementById("tooltip"), cvNet=document.getElementById("cv-net");
-cvNet.addEventListener("mousemove",(e)=>{ if(!netGeom||!netSeriesCache)return;
-  const r=cvNet.getBoundingClientRect(), px=e.clientX-r.left;
-  if(px<netGeom.x0||px>netGeom.x1){ tip.style.display="none"; drawNet(); return; }
-  drawNet(px);
-  const t=netGeom.t0+((px-netGeom.x0)/(netGeom.x1-netGeom.x0))*(netGeom.now-netGeom.t0);
-  let rows="";
-  for(const s of netSeriesCache){ if(!s.points.length)continue;
-    let np=s.points[0]; for(const p of s.points) if(Math.abs(p.t-t)<Math.abs(np.t-t))np=p;
-    rows+=`<div class="tt-r"><span class="nm"><i style="background:${s.color}"></i>${s.sym}</span><span class="vv">${fmtPct(np.v)}</span></div>`; }
-  let near=netSeriesCache[0]?.points[0]; for(const s of netSeriesCache)for(const p of s.points) if(!near||Math.abs(p.t-t)<Math.abs(near.t-t))near=p;
-  tip.innerHTML=`<div class="tt-t">${new Date(near?near.t:t).toLocaleTimeString()}</div>${rows}`;
-  tip.style.display="block";
-  const tw=tip.offsetWidth; tip.style.left=Math.min(px+14, r.width-tw-6)+"px"; tip.style.top="18px"; });
-cvNet.addEventListener("mouseleave",()=>{ tip.style.display="none"; drawNet(); });
-
 let lastSnaps=null,lastBoard=null,lastPaper=null;
-function redrawCharts(){ if(!lastSnaps)return; const ns=netSeriesFromSnaps(lastSnaps); renderNetChart(ns); renderHero(lastBoard,ns); if(lastPaper)renderEquity(lastPaper); }
+function redrawCharts(){ if(!lastSnaps)return; const ns=netSeriesFromSnaps(lastSnaps); renderMultiples(ns); renderHero(lastBoard,ns); if(lastPaper)renderEquity(lastPaper); }
 
 async function refresh(){ try{
   const [board,latest,paper,series,status]=await Promise.all([
@@ -375,7 +296,6 @@ async function refresh(){ try{
   document.getElementById("poll").textContent="poll "+Math.round(status.pollIntervalMs/1000)+"s";
   renderKpis(paper); renderBoard(board); renderLedger(paper); renderMatrix(latest); redrawCharts();
   document.getElementById("updated").textContent="updated "+new Date().toLocaleTimeString();
-  document.getElementById("live").style.opacity=1;
 }catch(e){ document.getElementById("live").textContent="signal lost"; } }
 
 document.getElementById("seg-window").addEventListener("click",(e)=>{ const b=e.target.closest("button"); if(!b)return;

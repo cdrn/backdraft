@@ -6,6 +6,7 @@ import type { FundingSnapshot, FundingVenue } from "./types.js";
 import { DydxVenue } from "./venues/dydx.js";
 import { HyperliquidVenue } from "./venues/hyperliquid.js";
 import { OkxVenue } from "./venues/okx.js";
+import { ParadexVenue } from "./venues/paradex.js";
 
 // Poll every venue in parallel each tick; a venue that errors drops out for
 // that tick (logged) without stalling the others. Raw snapshots persist;
@@ -15,6 +16,7 @@ export function startCollector(store: Store): void {
     new HyperliquidVenue(),
     new DydxVenue(),
     new OkxVenue(),
+    new ParadexVenue(),
   ];
   console.log(
     `[funding] venues: ${venues.map((v) => `${v.name}(${v.intervalHours}h)`).join(", ")}  symbols: ${SYMBOLS.join(",")}`,
