@@ -2,10 +2,14 @@ import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  ASSUMED_HOLD_DAYS,
+  DISPERSION_CLOSE_PCT,
+  DISPERSION_OPEN_PCT,
   FUNDING_POLL_INTERVAL_MS,
   FUNDING_PORT,
   FUNDING_PUBLIC_DIR,
   SYMBOLS,
+  VENUE_TAKER_BPS,
 } from "./config.js";
 import { computeDispersion } from "./derive/dispersion.js";
 import type { Store } from "./store.js";
@@ -53,6 +57,12 @@ export function startServer(store: Store): void {
         pollIntervalMs: FUNDING_POLL_INTERVAL_MS,
         venues: VENUE_META,
         symbols: SYMBOLS,
+        // fee model + thresholds so the dash computes net carry honestly,
+        // matching computeDispersion exactly.
+        takerBps: VENUE_TAKER_BPS,
+        holdDays: ASSUMED_HOLD_DAYS,
+        openPct: DISPERSION_OPEN_PCT,
+        closePct: DISPERSION_CLOSE_PCT,
       });
     }
 

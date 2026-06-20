@@ -3,349 +3,445 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FUNDINGHOUND — Cross-Venue Carry Observatory</title>
+<title>FUNDING · cross-venue carry</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --paper: #f3ecdc;
-    --paper-dark: #e9e0cb;
-    --grid-major: rgba(166, 88, 60, 0.28);
-    --grid-minor: rgba(166, 88, 60, 0.12);
-    --ink: #1a1610;
-    --ink-soft: #4a4338;
-    --red: #b3361e;
-    --green: #205c3b;
-    --brass: #8a6d3b;
-    --hl: #1a1610;
-    --dydx: #15457a;
-    --okx: #205c3b;
+    --bg:        #07090c;
+    --bg-grid:   rgba(80, 110, 140, 0.06);
+    --panel:     #0d1117;
+    --panel-2:   #11161d;
+    --edge:      #1c252f;
+    --edge-soft: #151c24;
+    --txt:       #e6edf3;
+    --txt-dim:   #6f8090;
+    --txt-faint: #46535f;
+    --carry:     #34d399;  /* green: income / profit */
+    --drag:      #f2555a;  /* red: cost / loss */
+    --amber:     #f5b342;  /* BTC */
+    --cyan:      #38c6da;  /* ETH */
+    --magenta:   #cf6bd6;  /* SOL */
+    --glow:      0 0 0 1px var(--edge), 0 0 24px -8px rgba(56,198,218,0.25);
   }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { -webkit-font-smoothing: antialiased; }
   body {
-    background: var(--paper);
-    color: var(--ink);
-    font-family: "IBM Plex Mono", monospace;
+    background:
+      radial-gradient(1200px 600px at 78% -10%, rgba(56,198,218,0.06), transparent 60%),
+      radial-gradient(900px 500px at 0% 110%, rgba(52,211,153,0.05), transparent 55%),
+      var(--bg);
+    color: var(--txt);
+    font-family: "JetBrains Mono", monospace;
     font-size: 13px;
+    line-height: 1.5;
     min-height: 100vh;
-    position: relative;
   }
+  /* faint instrument grid */
   body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 10;
+    content:""; position: fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:
+      linear-gradient(var(--bg-grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: radial-gradient(ellipse 100% 80% at 50% 30%, #000 40%, transparent 100%);
   }
-  .station { max-width: 1100px; margin: 0 auto; padding: 36px 28px 80px; }
-  header {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    border-top: 3px double var(--ink);
-    border-bottom: 1px solid var(--ink);
-    padding: 14px 4px 12px;
-    margin-bottom: 8px;
-  }
-  h1 {
-    font-family: "Instrument Serif", serif;
-    font-weight: 400;
-    font-size: 42px;
-    letter-spacing: 0.01em;
-  }
-  h1 .hound { font-style: italic; }
-  .plate {
-    text-align: right;
-    font-size: 11px;
-    color: var(--ink-soft);
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    line-height: 1.7;
-  }
-  .plate .live { color: var(--red); }
-  .plate .live::before {
-    content: "●";
-    margin-right: 6px;
-    animation: blink 2.4s steps(1) infinite;
-  }
-  @keyframes blink { 50% { opacity: 0.15; } }
-  .subtitle {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.22em;
-    color: var(--ink-soft);
-    padding: 6px 4px 22px;
-  }
-  h2 {
-    font-family: "Instrument Serif", serif;
-    font-weight: 400;
-    font-size: 24px;
-    font-style: italic;
-    margin-bottom: 12px;
-  }
-  section { margin-bottom: 44px; }
-  .note {
-    margin-top: 8px;
-    font-size: 10px;
-    color: var(--ink-soft);
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    line-height: 1.6;
-  }
-  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-  th {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.16em;
-    color: var(--brass);
-    text-align: right;
-    padding: 6px 10px;
-    border-bottom: 1px solid var(--ink);
-    font-weight: 500;
-  }
-  th:first-child, td:first-child { text-align: left; }
-  td {
-    padding: 8px 10px;
-    text-align: right;
-    border-bottom: 1px dotted rgba(26, 22, 16, 0.25);
-    font-size: 12px;
-  }
-  td.hot { color: var(--green); font-weight: 600; }
-  td.neg { color: var(--red); }
-  td.dim { color: rgba(74, 67, 56, 0.55); }
-  .venue-tag {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--ink-soft);
-  }
-  .leg { font-weight: 600; }
-  .leg .short { color: var(--red); }
-  .leg .long { color: var(--green); }
-  .big { font-family: "Instrument Serif", serif; font-size: 20px; }
+  .wrap { position: relative; z-index:1; max-width: 1240px; margin: 0 auto; padding: 30px 26px 90px; }
 
-  .cards { display: flex; gap: 0; flex-wrap: wrap; border: 1px solid var(--ink);
-    margin-bottom: 14px; background: var(--paper); box-shadow: 3px 3px 0 rgba(26,22,16,0.12); }
-  .cards .stat { flex: 1; min-width: 150px; padding: 12px 16px; border-right: 1px solid rgba(26,22,16,0.25); }
-  .cards .stat:last-child { border-right: none; }
-  .cards .stat .label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--brass); margin-bottom: 5px; }
-  .cards .stat .figure { font-family: "Instrument Serif", serif; font-size: 26px; font-variant-numeric: tabular-nums; }
-  .cards .stat .figure.good { color: var(--green); }
-  .cards .stat .sub { font-size: 10px; color: var(--ink-soft); margin-top: 3px; }
+  /* ---- header ---- */
+  header { display:flex; align-items:flex-end; justify-content:space-between; gap:20px;
+    padding-bottom:16px; border-bottom:1px solid var(--edge); margin-bottom:26px; }
+  .brand { display:flex; align-items:baseline; gap:14px; }
+  .brand h1 { font-family:"Fraunces",serif; font-weight:600; font-size:30px; letter-spacing:-0.01em; }
+  .brand .tag { font-size:10px; letter-spacing:0.32em; text-transform:uppercase; color:var(--txt-dim); }
+  .status { display:flex; gap:18px; align-items:center; font-size:10px; text-transform:uppercase; letter-spacing:0.16em; color:var(--txt-dim); }
+  .dot { display:inline-flex; align-items:center; gap:7px; }
+  .dot::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--carry); box-shadow:0 0 10px var(--carry); animation:pulse 2.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity:.3; } }
 
-  footer {
-    margin-top: 56px;
-    padding-top: 12px;
-    border-top: 3px double var(--ink);
-    font-size: 10px;
-    color: var(--ink-soft);
-    text-transform: uppercase;
-    letter-spacing: 0.16em;
-    display: flex;
-    justify-content: space-between;
-  }
+  /* ---- top grid: hero + KPIs ---- */
+  .top { display:grid; grid-template-columns: 1.15fr 1fr; gap:16px; margin-bottom:16px; }
+  .panel { background:linear-gradient(180deg,var(--panel),var(--panel-2)); border:1px solid var(--edge); border-radius:12px; }
+  .panel-pad { padding:18px 20px; }
+  .panel h2 { font-family:"Fraunces",serif; font-style:italic; font-weight:500; font-size:18px; color:var(--txt); margin-bottom:2px; }
+  .panel .sub { font-size:10px; text-transform:uppercase; letter-spacing:0.18em; color:var(--txt-faint); margin-bottom:14px; }
+
+  .hero { display:flex; flex-direction:column; justify-content:space-between; box-shadow:var(--glow); }
+  .hero .lead { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
+  .hero .sym { font-family:"Fraunces",serif; font-size:40px; font-weight:600; }
+  .hero .figure { font-family:"Fraunces",serif; font-size:64px; font-weight:600; line-height:.95; letter-spacing:-0.02em; }
+  .hero .figure.pos { color:var(--carry); } .hero .figure.neg { color:var(--drag); }
+  .hero .legs { font-size:12px; color:var(--txt-dim); margin-top:6px; }
+  .hero .legs .s { color:var(--drag); } .hero .legs .l { color:var(--carry); }
+  .hero .spark { margin-top:14px; }
+
+  .kpis { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--edge-soft); border:1px solid var(--edge); border-radius:12px; overflow:hidden; }
+  .kpi { background:linear-gradient(180deg,var(--panel),var(--panel-2)); padding:14px 16px; }
+  .kpi .k { font-size:9px; text-transform:uppercase; letter-spacing:0.18em; color:var(--txt-faint); }
+  .kpi .v { font-family:"Fraunces",serif; font-size:27px; font-weight:600; margin-top:5px; letter-spacing:-0.01em; }
+  .kpi .v.pos { color:var(--carry); } .kpi .v.neg { color:var(--drag); }
+  .kpi .d { font-size:10px; color:var(--txt-dim); margin-top:3px; }
+
+  /* ---- charts ---- */
+  .chart-panel { margin-bottom:16px; }
+  .chart-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px 6px; flex-wrap:wrap; gap:10px; }
+  .legend { display:flex; gap:16px; flex-wrap:wrap; font-size:11px; }
+  .legend .it { display:inline-flex; align-items:center; gap:7px; color:var(--txt-dim); cursor:default; }
+  .legend .swatch { width:14px; height:3px; border-radius:2px; }
+  .legend .val { color:var(--txt); font-weight:500; }
+  .seg { display:flex; border:1px solid var(--edge); border-radius:8px; overflow:hidden; }
+  .seg button { font-family:inherit; font-size:11px; padding:5px 12px; border:none; background:transparent; color:var(--txt-dim); cursor:pointer; border-right:1px solid var(--edge); transition:.13s; }
+  .seg button:last-child { border-right:none; }
+  .seg button:hover { color:var(--txt); background:rgba(56,198,218,0.05); }
+  .seg button.on { background:var(--cyan); color:#06222a; font-weight:700; }
+  canvas { display:block; width:100%; }
+  .chart-wrap { padding: 6px 14px 16px; }
+  .twocol { display:grid; grid-template-columns:1.55fr 1fr; gap:16px; margin-bottom:16px; }
+
+  /* ---- tables ---- */
+  table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  th { font-size:9px; text-transform:uppercase; letter-spacing:0.16em; color:var(--txt-faint); text-align:right; padding:9px 12px; border-bottom:1px solid var(--edge); font-weight:500; }
+  th:first-child, td:first-child { text-align:left; }
+  td { padding:10px 12px; text-align:right; border-bottom:1px solid var(--edge-soft); font-size:12px; }
+  tbody tr:hover { background:rgba(56,198,218,0.04); }
+  td.pos { color:var(--carry); } td.neg { color:var(--drag); } td.dim { color:var(--txt-faint); }
+  .big { font-size:15px; font-weight:700; }
+  .leg .s { color:var(--drag); font-weight:500; } .leg .l { color:var(--carry); font-weight:500; }
+  .pill { font-size:9px; padding:2px 7px; border-radius:20px; text-transform:uppercase; letter-spacing:0.08em; }
+  .pill.open { background:rgba(52,211,153,0.14); color:var(--carry); }
+  .pill.closed { background:rgba(111,128,144,0.14); color:var(--txt-dim); }
+  .empty { text-align:center; color:var(--txt-faint); padding:22px; }
+
+  footer { margin-top:34px; padding-top:14px; border-top:1px solid var(--edge); display:flex; justify-content:space-between; font-size:10px; text-transform:uppercase; letter-spacing:0.14em; color:var(--txt-faint); }
+  .sec-title { font-family:"Fraunces",serif; font-style:italic; font-weight:500; font-size:18px; padding:0 4px 10px; }
+  .note { font-size:10px; color:var(--txt-faint); padding:10px 20px 16px; line-height:1.6; }
+
+  @media (max-width: 880px) { .top,.twocol { grid-template-columns:1fr; } .hero .figure{font-size:52px;} }
 </style>
 </head>
 <body>
-<div class="station">
+<div class="wrap">
   <header>
-    <h1>FUNDING<span class="hound">HOUND</span></h1>
-    <div class="plate">
-      <div>Cross-Venue Perp Funding Carry · Backdraft</div>
-      <div>HL · dYdX · OKX &nbsp;·&nbsp; <span id="poll">—</span></div>
-      <div class="live" id="live-label">RECORDING</div>
+    <div class="brand">
+      <h1>Funding</h1>
+      <span class="tag">cross-venue carry · seismograph</span>
+    </div>
+    <div class="status">
+      <span id="venues">HL · dYdX · OKX</span>
+      <span id="poll">—</span>
+      <span class="dot" id="live">live</span>
     </div>
   </header>
-  <div class="subtitle">Delta-neutral carry: short the rich-funding venue, long the cheap one · figures are annualized %, net of round-trip fills</div>
 
-  <!-- the headline: best carry right now -->
-  <section>
-    <h2>Top carry — net annualized</h2>
-    <div id="top-cards" class="cards"></div>
-    <div class="note">net = funding differential (annualized) minus entry+exit taker fees on BOTH legs, amortized over the assumed hold. A positive net is a delta-neutral pair that out-earns its own fills at that hold.</div>
-  </section>
+  <!-- hero + KPIs -->
+  <div class="top">
+    <div class="panel panel-pad hero">
+      <div>
+        <div class="sub">best net carry now</div>
+        <div class="lead">
+          <span class="sym" id="hero-sym">—</span>
+          <span class="figure" id="hero-net">—</span>
+        </div>
+        <div class="legs" id="hero-legs"></div>
+      </div>
+      <div class="spark"><canvas id="cv-spark" height="56"></canvas></div>
+    </div>
+    <div class="kpis" id="kpis"></div>
+  </div>
 
-  <!-- paper ledger: the money-truth panel -->
-  <section>
-    <h2>Paper ledger — does the carry out-earn fees + basis?</h2>
-    <div id="paper-stats" class="cards"></div>
-    <table id="paper-table">
-      <thead>
-        <tr>
-          <th>Symbol</th><th>Position</th><th>Status</th><th>Hold</th>
-          <th>Carry $</th><th>Basis $</th><th>Fees $</th><th>Net $</th><th>Ann %</th>
-        </tr>
-      </thead>
+  <!-- main chart: net carry over time -->
+  <div class="panel chart-panel">
+    <div class="chart-head">
+      <div>
+        <h2>Net carry over time</h2>
+        <div class="sub">is the edge persistent, or just a spike?</div>
+      </div>
+      <div style="display:flex; gap:14px; align-items:center;">
+        <span class="legend" id="chart-legend"></span>
+        <div class="seg" id="seg-window">
+          <button data-v="360">6h</button>
+          <button data-v="1440" class="on">24h</button>
+          <button data-v="4320">3d</button>
+        </div>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="cv-net" height="300"></canvas></div>
+    <div class="note">annualized net carry per symbol — gross funding spread minus round-trip fills amortized over the assumed hold. Dashed line = open threshold, dotted = close. Above the open line is a tradeable pair; how long it <i>stays</i> there is the edge.</div>
+  </div>
+
+  <!-- equity curve + funding matrix -->
+  <div class="twocol">
+    <div class="panel chart-panel" style="margin:0;">
+      <div class="chart-head"><div><h2>Paper equity</h2><div class="sub">cumulative realized net, closed positions</div></div></div>
+      <div class="chart-wrap"><canvas id="cv-equity" height="220"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="chart-head"><div><h2>Funding matrix</h2><div class="sub">annualized %, by venue</div></div></div>
+      <table id="matrix"><thead><tr id="matrix-head"></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <!-- carry board -->
+  <div class="sec-title">Carry board — best cross-venue pair per symbol</div>
+  <div class="panel" style="margin-bottom:16px;">
+    <table id="board">
+      <thead><tr>
+        <th>Symbol</th><th>Position</th><th>Short fund</th><th>Long fund</th>
+        <th>Gross</th><th>Fee drag</th><th>Net carry</th>
+      </tr></thead>
       <tbody></tbody>
     </table>
-    <div class="note">opens delta-neutral when net annualized clears the threshold; accrues funding each tick at observed rates; closes when the spread compresses. <b>Carry</b> is funding earned, <b>basis</b> is the leg-mark divergence (the risk), <b>net</b> = carry + basis − round-trip fills. Ignores own market impact and non-atomic fills — a ceiling, not a promise.</div>
-  </section>
+  </div>
 
-  <!-- per-symbol carry board -->
-  <section>
-    <h2>Carry board — best cross-venue pair per symbol</h2>
-    <table id="board-table">
-      <thead>
-        <tr>
-          <th>Symbol</th><th>Position</th><th>Short funding</th>
-          <th>Long funding</th><th>Gross spread</th><th>Fee drag</th><th>Net carry</th>
-        </tr>
-      </thead>
+  <!-- paper ledger -->
+  <div class="sec-title">Paper ledger — open + recent closed</div>
+  <div class="panel">
+    <table id="ledger">
+      <thead><tr>
+        <th>Symbol</th><th>Position</th><th>Status</th><th>Hold</th>
+        <th>Carry $</th><th>Basis $</th><th>Fees $</th><th>Net $</th><th>Ann %</th>
+      </tr></thead>
       <tbody></tbody>
     </table>
-    <div class="note">short the venue with the highest funding (you receive), long the lowest (you pay least) · equal notional ⇒ delta-neutral · all rates annualized %</div>
-  </section>
-
-  <!-- raw funding matrix -->
-  <section>
-    <h2>Funding matrix — annualized % by venue</h2>
-    <table id="matrix-table">
-      <thead><tr id="matrix-head"></tr></thead>
-      <tbody></tbody>
-    </table>
-    <div class="note">raw funding per venue per symbol, annualized for the venue's interval (HL/dYdX hourly, OKX 8h) · the spread across a row is the dispersion the carry board trades</div>
-  </section>
+    <div class="note">opens delta-neutral when net clears the threshold; accrues funding each tick at observed rates; closes when the spread compresses. <b>Net</b> = carry + basis − round-trip fills. Models neither own market impact nor non-atomic fills — a ceiling, not a promise.</div>
+  </div>
 
   <footer>
-    <span>backdraft funding — cross-venue carry instrument · paper-first, carry ledger pending</span>
+    <span>backdraft · funding instrument</span>
     <span id="updated"></span>
   </footer>
 </div>
 
 <script>
-const VENUE_COLOR = { hyperliquid: "#1a1610", dydx: "#15457a", okx: "#205c3b" };
-const VENUE_LABEL = { hyperliquid: "HL", dydx: "dYdX", okx: "OKX" };
+const SYM_COLOR = { BTC:"#f5b342", ETH:"#38c6da", SOL:"#cf6bd6" };
+const PALETTE = ["#f5b342","#38c6da","#cf6bd6","#34d399","#f2555a"];
+const VENUE_LABEL = { hyperliquid:"HL", dydx:"dYdX", okx:"OKX" };
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
-function fmtPct(v) {
-  if (v === null || v === undefined || Number.isNaN(v)) return "—";
-  return (v >= 0 ? "+" : "") + v.toFixed(1) + "%";
+let state = { minutes: 1440 };
+let cfg = { takerBps:{}, holdDays:3, openPct:10, closePct:4, pollIntervalMs:60000 };
+
+const symColor = (s) => SYM_COLOR[s] || PALETTE[Math.abs([...s].reduce((a,c)=>a+c.charCodeAt(0),0)) % PALETTE.length];
+const vlabel = (v) => VENUE_LABEL[v] || v;
+const fmtPct = (v) => (v===null||v===undefined||Number.isNaN(v)) ? "—" : (v>=0?"+":"")+v.toFixed(1)+"%";
+const fmtUsd = (v) => (v===null||v===undefined||Number.isNaN(v)) ? "—" : (v>=0?"":"−")+"$"+Math.abs(v).toFixed(2);
+const usdCls = (v) => v>0?"pos":v<0?"neg":"dim";
+
+// ---- net-carry math, identical to server computeDispersion ----
+const taker = (v) => (cfg.takerBps[v] ?? 5);
+function feeAnnPct(s, l) { return (2*(taker(s)+taker(l))/100) * (365/cfg.holdDays); }
+// from a set of {venue, annualizedPct} for one symbol → best net pair
+function bestPair(rows) {
+  if (rows.length < 2) return null;
+  let hi=rows[0], lo=rows[0];
+  for (const r of rows) { if (r.annualizedPct>hi.annualizedPct) hi=r; if (r.annualizedPct<lo.annualizedPct) lo=r; }
+  if (hi.venue===lo.venue) return null;
+  const gross = hi.annualizedPct - lo.annualizedPct;
+  const net = gross - feeAnnPct(hi.venue, lo.venue);
+  return { short:hi.venue, long:lo.venue, shortAnn:hi.annualizedPct, longAnn:lo.annualizedPct, gross, net };
 }
-function vlabel(v) { return VENUE_LABEL[v] || v; }
 
-function renderTop(board) {
-  const top = board.slice(0, 3);
-  const el = document.getElementById("top-cards");
-  if (!top.length) {
-    el.innerHTML = `<div class="stat"><div class="label">awaiting signal</div><div class="figure">—</div></div>`;
-    return;
+// ---- canvas line chart ----
+function lineChart(canvas, series, opts={}) {
+  const dpr = window.devicePixelRatio||1, w=canvas.clientWidth, h=canvas.clientHeight;
+  canvas.width=w*dpr; canvas.height=h*dpr;
+  const ctx=canvas.getContext("2d"); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h);
+  const padL=46, padR=12, padT=12, padB=20;
+  const x0=padL, x1=w-padR, y0=padT, y1=h-padB;
+  const all = series.flatMap(s=>s.points.map(p=>p.v));
+  if (opts.refs) all.push(...opts.refs.map(r=>r.v));
+  let lo = Math.min(0, ...all), hi = Math.max(...all, 1);
+  if (!isFinite(lo)||!isFinite(hi)) { lo=0; hi=1; }
+  const padv=(hi-lo)*0.12||1; lo-=padv; hi+=padv;
+  const now=Date.now(), t0=now-state.minutes*60000;
+  const X=(t)=>x0+((t-t0)/(now-t0))*(x1-x0);
+  const Y=(v)=>y1-((v-lo)/(hi-lo))*(y1-y0);
+
+  // zero / profit tint
+  if (lo<0 && hi>0) { ctx.fillStyle="rgba(52,211,153,0.04)"; ctx.fillRect(x0,y0,x1-x0,Y(0)-y0); }
+  // y grid + labels
+  ctx.font="10px 'JetBrains Mono'"; ctx.textBaseline="middle";
+  const ticks=4;
+  for (let i=0;i<=ticks;i++){ const v=lo+(hi-lo)*i/ticks, y=Y(v);
+    ctx.strokeStyle=css("--edge-soft"); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke();
+    ctx.fillStyle=css("--txt-faint"); ctx.textAlign="right"; ctx.fillText((opts.pct?(v>=0?"+":"")+v.toFixed(0)+"%":v.toFixed(0)), x0-8, y); }
+  // reference lines (thresholds)
+  for (const r of (opts.refs||[])) { const y=Y(r.v);
+    ctx.strokeStyle=r.color||css("--txt-dim"); ctx.lineWidth=1; ctx.setLineDash(r.dash||[5,4]); ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle=r.color||css("--txt-dim"); ctx.textAlign="left"; ctx.fillText(r.label, x0+4, y-7); }
+
+  if (!series.some(s=>s.points.length)) {
+    ctx.fillStyle=css("--txt-faint"); ctx.textAlign="center"; ctx.fillText("collecting…", (x0+x1)/2, (y0+y1)/2); return;
   }
-  el.innerHTML = top.map((c) => `
-    <div class="stat">
-      <div class="label">${c.symbol} · ${c.venuesSeen} venues</div>
-      <div class="figure ${c.netAnnPct > 0 ? "good" : ""}">${fmtPct(c.netAnnPct)}</div>
-      <div class="sub"><span style="color:var(--red)">short ${vlabel(c.shortVenue)}</span> / <span style="color:var(--green)">long ${vlabel(c.longVenue)}</span> · gross ${fmtPct(c.grossAnnPct)}</div>
-    </div>`).join("");
+  for (const s of series) {
+    if (!s.points.length) continue;
+    ctx.strokeStyle=s.color; ctx.lineWidth=s.width||1.8; ctx.lineJoin="round"; ctx.beginPath();
+    s.points.forEach((p,i)=>{ const x=X(p.t),y=Y(p.v); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke();
+    if (s.fill) { ctx.lineTo(X(s.points.at(-1).t),Y(lo)); ctx.lineTo(X(s.points[0].t),Y(lo)); ctx.closePath();
+      ctx.fillStyle=s.fill; ctx.fill(); }
+    const last=s.points.at(-1); ctx.fillStyle=s.color; ctx.beginPath(); ctx.arc(X(last.t),Y(last.v),2.6,0,7); ctx.fill();
+  }
+}
+function sparkline(canvas, points, color) {
+  const dpr=window.devicePixelRatio||1, w=canvas.clientWidth, h=canvas.clientHeight;
+  canvas.width=w*dpr; canvas.height=h*dpr; const ctx=canvas.getContext("2d"); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h);
+  if (points.length<2) return;
+  const vs=points.map(p=>p.v); let lo=Math.min(...vs),hi=Math.max(...vs); if(hi===lo){hi+=1;lo-=1;}
+  const X=(i)=>(i/(points.length-1))*w, Y=(v)=>h-2-((v-lo)/(hi-lo))*(h-4);
+  ctx.strokeStyle=color; ctx.lineWidth=1.6; ctx.lineJoin="round"; ctx.beginPath();
+  points.forEach((p,i)=>{ const x=X(i),y=Y(p.v); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke();
+  ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
+  const g=ctx.createLinearGradient(0,0,0,h); g.addColorStop(0,color+"33"); g.addColorStop(1,color+"00"); ctx.fillStyle=g; ctx.fill();
 }
 
-function renderBoard(board) {
-  const tbody = document.querySelector("#board-table tbody");
-  if (!board.length) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--ink-soft)">no pair yet — need ≥2 venues pricing a symbol</td></tr>`;
-    return;
+// build per-symbol net-carry time series from raw snapshots
+function netSeriesFromSnaps(snaps) {
+  const bucketMs = cfg.pollIntervalMs;
+  const buckets = new Map(); // bucket -> symbol -> [{venue,annualizedPct}]
+  for (const s of snaps) {
+    const b = Math.round(s.ts/bucketMs);
+    if (!buckets.has(b)) buckets.set(b, new Map());
+    const bySym = buckets.get(b);
+    if (!bySym.has(s.symbol)) bySym.set(s.symbol, []);
+    bySym.get(s.symbol).push({ venue:s.venue, annualizedPct:s.annualizedPct });
   }
-  tbody.innerHTML = board.map((c) => {
-    const netCls = c.netAnnPct > 0 ? "hot" : "neg";
-    return `<tr>
-      <td><b>${c.symbol}</b></td>
-      <td class="leg"><span class="short">short ${vlabel(c.shortVenue)}</span> / <span class="long">long ${vlabel(c.longVenue)}</span></td>
-      <td>${fmtPct(c.shortAnnPct)}</td>
-      <td>${fmtPct(c.longAnnPct)}</td>
-      <td>${fmtPct(c.grossAnnPct)}</td>
-      <td class="dim">−${c.feeAnnPct.toFixed(1)}% · ${c.holdDays}d hold</td>
-      <td class="${netCls} big">${fmtPct(c.netAnnPct)}</td>
-    </tr>`;
+  const out = {}; // symbol -> [{t, v}]
+  for (const [b, bySym] of [...buckets.entries()].sort((a,b)=>a[0]-b[0])) {
+    for (const [sym, rows] of bySym) {
+      const bp = bestPair(rows); if (!bp) continue;
+      (out[sym] ||= []).push({ t:b*bucketMs, v:bp.net });
+    }
+  }
+  return out;
+}
+
+function renderHero(board, netSeries) {
+  const best = board[0];
+  if (!best) return;
+  document.getElementById("hero-sym").textContent = best.symbol;
+  const f = document.getElementById("hero-net");
+  f.textContent = fmtPct(best.netAnnPct); f.className = "figure "+(best.netAnnPct>0?"pos":"neg");
+  document.getElementById("hero-legs").innerHTML =
+    `<span class="s">short ${vlabel(best.shortVenue)} ${fmtPct(best.shortAnnPct)}</span> &nbsp;·&nbsp; <span class="l">long ${vlabel(best.longVenue)} ${fmtPct(best.longAnnPct)}</span> &nbsp;·&nbsp; gross ${fmtPct(best.grossAnnPct)}`;
+  sparkline(document.getElementById("cv-spark"), (netSeries[best.symbol]||[]).map(p=>({v:p.v})), symColor(best.symbol));
+}
+
+function renderKpis(paper) {
+  const s = paper.stats;
+  document.getElementById("kpis").innerHTML = `
+    <div class="kpi"><div class="k">open positions</div><div class="v">${s.open}</div><div class="d">unreal ${fmtUsd(s.openUnrealizedUsd)}</div></div>
+    <div class="kpi"><div class="k">closed net</div><div class="v ${s.closedNetUsd>=0?"pos":"neg"}">${fmtUsd(s.closedNetUsd)}</div><div class="d">${s.closed} trips</div></div>
+    <div class="kpi"><div class="k">mean realized</div><div class="v ${s.meanRealizedAnnPct>=0?"pos":"neg"}">${fmtPct(s.meanRealizedAnnPct)}</div><div class="d">${s.meanHoldDays.toFixed(2)}d hold</div></div>
+    <div class="kpi"><div class="k">win rate</div><div class="v">${(s.winRate*100).toFixed(0)}%</div><div class="d">carry ${fmtUsd(s.closedCarryUsd)} · fees ${fmtUsd(-s.closedFeesUsd)}</div></div>`;
+}
+
+function renderNetChart(netSeries) {
+  const syms = Object.keys(netSeries).sort();
+  lineChart(document.getElementById("cv-net"),
+    syms.map(s=>({ points:netSeries[s], color:symColor(s) })),
+    { pct:true, refs:[
+      { v:cfg.openPct, label:`open ${cfg.openPct}%`, color:css("--carry"), dash:[6,4] },
+      { v:cfg.closePct, label:`close ${cfg.closePct}%`, color:css("--txt-dim"), dash:[2,4] },
+    ]});
+  document.getElementById("chart-legend").innerHTML = syms.map(s=>{
+    const last=netSeries[s].at(-1);
+    return `<span class="it"><span class="swatch" style="background:${symColor(s)}"></span>${s} <span class="val">${last?fmtPct(last.v):"—"}</span></span>`;
   }).join("");
 }
 
-function fmtUsd(v) {
-  if (v === null || v === undefined || Number.isNaN(v)) return "—";
-  return (v >= 0 ? "" : "−") + "$" + Math.abs(v).toFixed(2);
-}
-function usdCls(v) { return v > 0 ? "hot" : v < 0 ? "neg" : "dim"; }
-
-function renderPaper(data) {
-  const s = data.stats;
-  document.getElementById("paper-stats").innerHTML = `
-    <div class="stat"><div class="label">Open / closed</div><div class="figure">${s.open} / ${s.closed}</div></div>
-    <div class="stat"><div class="label">Open unrealized</div><div class="figure ${s.openUnrealizedUsd >= 0 ? "good" : ""}">${fmtUsd(s.openUnrealizedUsd)}</div><div class="sub">carry − round-trip fee</div></div>
-    <div class="stat"><div class="label">Closed net</div><div class="figure ${s.closedNetUsd >= 0 ? "good" : ""}">${fmtUsd(s.closedNetUsd)}</div><div class="sub">carry ${fmtUsd(s.closedCarryUsd)} · basis ${fmtUsd(s.closedBasisUsd)} · fees ${fmtUsd(-s.closedFeesUsd)}</div></div>
-    <div class="stat"><div class="label">Mean realized</div><div class="figure ${s.meanRealizedAnnPct >= 0 ? "good" : ""}">${fmtPct(s.meanRealizedAnnPct)}</div><div class="sub">${s.meanHoldDays.toFixed(2)}d mean hold</div></div>
-    <div class="stat"><div class="label">Win rate</div><div class="figure">${(s.winRate * 100).toFixed(0)}%</div></div>`;
-
-  const rows = [
-    ...data.open.map((p) => ({ ...p, _open: true })),
-    ...data.closed.map((p) => ({ ...p, _open: false })),
-  ];
-  const tbody = document.querySelector("#paper-table tbody");
-  if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--ink-soft)">no paper positions yet — waiting for a pair to clear the open threshold</td></tr>`;
-    return;
-  }
-  tbody.innerHTML = rows.map((p) => {
-    const now = Date.now();
-    const holdDays = ((p.closedTs ?? now) - p.openedTs) / 86400000;
-    const hold = holdDays >= 1 ? holdDays.toFixed(1) + "d" : Math.max(1, Math.round(holdDays * 24)) + "h";
-    const carry = p._open ? p.carryPnl : p.carryPnl;
-    const basis = p._open ? null : p.basisPnl;
-    const fees = p._open ? 2 * p.feePaid : p.totalFee;
-    const net = p._open ? p.carryPnl - 2 * p.feePaid : p.totalPnl;
-    const ann = p._open ? null : p.realizedAnnPct;
-    return `<tr>
-      <td><b>${p.symbol}</b></td>
-      <td class="leg"><span class="short">S ${vlabel(p.shortVenue)}</span>/<span class="long">L ${vlabel(p.longVenue)}</span></td>
-      <td class="${p._open ? "hot" : "dim"}">${p._open ? "OPEN" : "closed"}</td>
-      <td>${hold}</td>
-      <td class="${usdCls(carry)}">${fmtUsd(carry)}</td>
-      <td class="${basis === null ? "dim" : usdCls(basis)}">${basis === null ? "—" : fmtUsd(basis)}</td>
-      <td class="dim">${fmtUsd(-fees)}</td>
-      <td class="${usdCls(net)} big">${fmtUsd(net)}</td>
-      <td class="${ann === null ? "dim" : usdCls(ann)}">${ann === null ? "live" : fmtPct(ann)}</td>
-    </tr>`;
-  }).join("");
+function renderEquity(paper) {
+  const closed = [...paper.closed].filter(p=>p.closedTs).sort((a,b)=>a.closedTs-b.closedTs);
+  let cum=0; const pts = closed.map(p=>({ t:p.closedTs, v:(cum+=p.totalPnl) }));
+  lineChart(document.getElementById("cv-equity"),
+    [{ points: pts, color:css("--carry"), fill:"rgba(52,211,153,0.08)" }],
+    { refs:[{ v:0, label:"", color:css("--edge"), dash:[3,3] }] });
 }
 
 function renderMatrix(latest) {
-  const venues = [...new Set(latest.map((s) => s.venue))].sort();
-  const symbols = [...new Set(latest.map((s) => s.symbol))].sort();
-  document.getElementById("matrix-head").innerHTML =
-    `<th>Symbol</th>` + venues.map((v) => `<th>${vlabel(v)}</th>`).join("") + `<th>Spread</th>`;
-  const get = (sym, ven) => latest.find((s) => s.symbol === sym && s.venue === ven);
-  document.querySelector("#matrix-table tbody").innerHTML = symbols.map((sym) => {
-    const vals = venues.map((v) => get(sym, v)?.annualizedPct);
-    const present = vals.filter((x) => x !== undefined);
-    const spread = present.length >= 2 ? Math.max(...present) - Math.min(...present) : null;
-    const cells = venues.map((v, i) => {
-      const x = vals[i];
-      if (x === undefined) return `<td class="dim">—</td>`;
-      return `<td style="color:${VENUE_COLOR[v] || "var(--ink)"}">${fmtPct(x)}</td>`;
-    }).join("");
-    return `<tr><td><b>${sym}</b></td>${cells}<td class="${spread > 0 ? "hot" : "dim"}">${spread === null ? "—" : fmtPct(spread)}</td></tr>`;
+  const venues=[...new Set(latest.map(s=>s.venue))].sort();
+  const syms=[...new Set(latest.map(s=>s.symbol))].sort();
+  document.getElementById("matrix-head").innerHTML = `<th>Sym</th>`+venues.map(v=>`<th>${vlabel(v)}</th>`).join("")+`<th>Spread</th>`;
+  const get=(sym,v)=>latest.find(s=>s.symbol===sym&&s.venue===v)?.annualizedPct;
+  document.querySelector("#matrix tbody").innerHTML = syms.map(sym=>{
+    const vals=venues.map(v=>get(sym,v)); const present=vals.filter(x=>x!==undefined);
+    const spread=present.length>=2?Math.max(...present)-Math.min(...present):null;
+    const cells=vals.map((x,i)=> x===undefined?`<td class="dim">—</td>`:`<td style="color:${css('--txt')}">${fmtPct(x)}</td>`).join("");
+    return `<tr><td><b>${sym}</b></td>${cells}<td class="${spread>0?"pos":"dim"}">${spread===null?"—":fmtPct(spread)}</td></tr>`;
   }).join("");
+}
+
+function renderBoard(board) {
+  const tb=document.querySelector("#board tbody");
+  if (!board.length){ tb.innerHTML=`<tr><td colspan="7" class="empty">need ≥2 venues pricing a symbol</td></tr>`; return; }
+  tb.innerHTML = board.map(c=>`<tr>
+    <td><b>${c.symbol}</b></td>
+    <td class="leg"><span class="s">S ${vlabel(c.shortVenue)}</span> / <span class="l">L ${vlabel(c.longVenue)}</span></td>
+    <td>${fmtPct(c.shortAnnPct)}</td><td>${fmtPct(c.longAnnPct)}</td>
+    <td>${fmtPct(c.grossAnnPct)}</td><td class="dim">−${c.feeAnnPct.toFixed(1)}%</td>
+    <td class="${c.netAnnPct>0?"pos":"neg"} big">${fmtPct(c.netAnnPct)}</td></tr>`).join("");
+}
+
+function renderLedger(paper) {
+  const rows=[...paper.open.map(p=>({...p,_open:true})), ...paper.closed.map(p=>({...p,_open:false}))];
+  const tb=document.querySelector("#ledger tbody");
+  if (!rows.length){ tb.innerHTML=`<tr><td colspan="9" class="empty">no positions yet — waiting for a pair to clear the open threshold</td></tr>`; return; }
+  const now=Date.now();
+  tb.innerHTML = rows.map(p=>{
+    const holdD=((p.closedTs??now)-p.openedTs)/86400000;
+    const hold = holdD>=1?holdD.toFixed(1)+"d":Math.max(1,Math.round(holdD*24))+"h";
+    const fees = p._open?2*p.feePaid:p.totalFee;
+    const net  = p._open?p.carryPnl-2*p.feePaid:p.totalPnl;
+    const basis= p._open?null:p.basisPnl;
+    const ann  = p._open?null:p.realizedAnnPct;
+    return `<tr>
+      <td><b>${p.symbol}</b></td>
+      <td class="leg"><span class="s">S ${vlabel(p.shortVenue)}</span>/<span class="l">L ${vlabel(p.longVenue)}</span></td>
+      <td><span class="pill ${p._open?"open":"closed"}">${p._open?"open":"closed"}</span></td>
+      <td>${hold}</td>
+      <td class="${usdCls(p.carryPnl)}">${fmtUsd(p.carryPnl)}</td>
+      <td class="${basis===null?"dim":usdCls(basis)}">${basis===null?"—":fmtUsd(basis)}</td>
+      <td class="dim">${fmtUsd(-fees)}</td>
+      <td class="${usdCls(net)} big">${fmtUsd(net)}</td>
+      <td class="${ann===null?"dim":usdCls(ann)}">${ann===null?"live":fmtPct(ann)}</td></tr>`;
+  }).join("");
+}
+
+let lastSnaps=null, lastBoard=null, lastPaper=null;
+function redrawCharts() {
+  if (!lastSnaps) return;
+  const netSeries = netSeriesFromSnaps(lastSnaps);
+  renderNetChart(netSeries);
+  renderHero(lastBoard, netSeries);
+  if (lastPaper) renderEquity(lastPaper);
 }
 
 async function refresh() {
   try {
-    const [board, latest, paper, status] = await Promise.all([
-      fetch("/api/board").then((r) => r.json()),
-      fetch("/api/latest").then((r) => r.json()),
-      fetch("/api/paper?limit=50").then((r) => r.json()),
-      fetch("/api/status").then((r) => r.json()),
+    const [board, latest, paper, series, status] = await Promise.all([
+      fetch("/api/board").then(r=>r.json()),
+      fetch("/api/latest").then(r=>r.json()),
+      fetch("/api/paper?limit=80").then(r=>r.json()),
+      fetch(`/api/series?minutes=${state.minutes}`).then(r=>r.json()),
+      fetch("/api/status").then(r=>r.json()),
     ]);
-    renderTop(board);
-    renderPaper(paper);
-    renderBoard(board);
-    renderMatrix(latest);
-    document.getElementById("poll").textContent =
-      "poll " + Math.round(status.pollIntervalMs / 1000) + "s";
-    document.getElementById("updated").textContent =
-      "last reading " + new Date().toLocaleTimeString();
-    document.getElementById("live-label").textContent = "RECORDING";
-  } catch (err) {
-    document.getElementById("live-label").textContent = "SIGNAL LOST";
-  }
+    cfg = { ...cfg, ...status };
+    lastBoard=board; lastPaper=paper; lastSnaps=series;
+    document.getElementById("venues").textContent = status.venues.map(v=>`${vlabel(v.name)} ${v.intervalHours}h`).join(" · ");
+    document.getElementById("poll").textContent = "poll "+Math.round(status.pollIntervalMs/1000)+"s";
+    renderKpis(paper); renderBoard(board); renderLedger(paper); renderMatrix(latest);
+    redrawCharts();
+    document.getElementById("updated").textContent = "updated "+new Date().toLocaleTimeString();
+    document.getElementById("live").style.opacity = 1;
+  } catch(e) { document.getElementById("live").textContent="signal lost"; }
 }
+
+document.getElementById("seg-window").addEventListener("click",(e)=>{
+  const b=e.target.closest("button"); if(!b) return;
+  for (const x of b.parentElement.children) x.classList.remove("on");
+  b.classList.add("on"); state.minutes=Number(b.dataset.v); refresh();
+});
+window.addEventListener("resize", redrawCharts);
 refresh();
 setInterval(refresh, 30000);
 </script>
