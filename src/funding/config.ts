@@ -59,3 +59,13 @@ export const ASSUMED_HOLD_DAYS = Number(process.env.FUNDING_HOLD_DAYS ?? 3);
 export const FUNDING_PAPER_NOTIONAL = Number(
   process.env.FUNDING_PAPER_NOTIONAL ?? 10_000,
 );
+
+// Anti-whipsaw controls. Funding (esp. dYdX's predicted rate) is noisy
+// tick-to-tick and dips near each hourly settlement; without these the ledger
+// chases spikes in and panic-sells dips out, paying round-trip fills for ~no
+// carry. We smooth the spread (EMA), require the signal to PERSIST before
+// acting at both ends, and never exit inside a minimum hold.
+export const SPREAD_EMA_ALPHA = Number(process.env.FUNDING_SPREAD_EMA_ALPHA ?? 0.1);
+export const OPEN_CONFIRM_TICKS = Number(process.env.FUNDING_OPEN_CONFIRM_TICKS ?? 10);
+export const CLOSE_CONFIRM_TICKS = Number(process.env.FUNDING_CLOSE_CONFIRM_TICKS ?? 10);
+export const MIN_HOLD_HOURS = Number(process.env.FUNDING_MIN_HOLD_HOURS ?? 6);

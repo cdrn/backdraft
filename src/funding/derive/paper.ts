@@ -1,7 +1,11 @@
 import {
+  CLOSE_CONFIRM_TICKS,
   DISPERSION_CLOSE_PCT,
   DISPERSION_OPEN_PCT,
   FUNDING_PAPER_NOTIONAL,
+  MIN_HOLD_HOURS,
+  OPEN_CONFIRM_TICKS,
+  SPREAD_EMA_ALPHA,
   VENUE_TAKER_BPS,
 } from "../config.js";
 import type { Store } from "../store.js";
@@ -77,6 +81,11 @@ function legFillBps(
 }
 
 export class PaperLedger {
+  // in-memory anti-whipsaw state (resets on restart, which is safe — counters
+  // just re-accumulate before any action fires).
+  private posState = new Map<number, { smoothed: number; belowTicks: number }>();
+  private aboveOpenTicks = new Map<string, number>();
+
   constructor(
     private store: Store,
     private openPct = DISPERSION_OPEN_PCT,
@@ -120,10 +129,21 @@ export class PaperLedger {
         l.annualizedPct,
       );
 
-      // close when the directional spread (short − long) compresses below the
-      // close threshold — including a sign flip, where it goes negative.
-      const currentSpread = s.annualizedPct - l.annualizedPct;
-      if (currentSpread < this.closePct) {
+      // Exit only on a PERSISTENT, smoothed compression — never on a single
+      // noisy tick or inside the minimum hold. Smooth the spread (EMA), count
+      // consecutive ticks the smoothed value sits below the close threshold,
+      // and require both the min-hold and the confirm window before closing.
+      const rawSpread = s.annualizedPct - l.annualizedPct;
+      const st = this.posState.get(pos.id) ?? { smoothed: rawSpread, belowTicks: 0 };
+      st.smoothed += SPREAD_EMA_ALPHA * (rawSpread - st.smoothed);
+      st.belowTicks = st.smoothed < this.closePct ? st.belowTicks + 1 : 0;
+      this.posState.set(pos.id, st);
+
+      const holdHours = (ts - pos.openedTs) / 3_600_000;
+      const shouldClose =
+        holdHours >= MIN_HOLD_HOURS && st.belowTicks >= CLOSE_CONFIRM_TICKS;
+      if (shouldClose) {
+        this.posState.delete(pos.id);
         const sPx = s.markPx ?? pos.entryShortPx;
         const lPx = l.markPx ?? pos.entryLongPx;
         // short profits when its mark falls, long when its mark rises; if both
@@ -159,7 +179,16 @@ export class PaperLedger {
       this.store.openPaperPositions().map((p) => p.symbol),
     );
     for (const c of board) {
-      if (c.netAnnPct < this.openPct || openSymbols.has(c.symbol)) continue;
+      // track persistence: how many consecutive ticks this opportunity has
+      // held above the open threshold. Reset the moment it drops.
+      const above = c.netAnnPct >= this.openPct;
+      this.aboveOpenTicks.set(
+        c.symbol,
+        above ? (this.aboveOpenTicks.get(c.symbol) ?? 0) + 1 : 0,
+      );
+      if (!above || openSymbols.has(c.symbol)) continue;
+      // require the edge to have PERSISTED, not just spiked this tick
+      if ((this.aboveOpenTicks.get(c.symbol) ?? 0) < OPEN_CONFIRM_TICKS) continue;
       const s = snap(c.shortVenue, c.symbol);
       const l = snap(c.longVenue, c.symbol);
       if (!s?.markPx || !l?.markPx) continue;
