@@ -3,447 +3,385 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FUNDING · cross-venue carry</title>
+<title>FUNDING · cross-venue carry scope</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg:        #07090c;
-    --bg-grid:   rgba(80, 110, 140, 0.06);
-    --panel:     #0d1117;
-    --panel-2:   #11161d;
-    --edge:      #1c252f;
-    --edge-soft: #151c24;
-    --txt:       #e6edf3;
-    --txt-dim:   #6f8090;
-    --txt-faint: #46535f;
-    --carry:     #34d399;  /* green: income / profit */
-    --drag:      #f2555a;  /* red: cost / loss */
-    --amber:     #f5b342;  /* BTC */
-    --cyan:      #38c6da;  /* ETH */
-    --magenta:   #cf6bd6;  /* SOL */
-    --glow:      0 0 0 1px var(--edge), 0 0 24px -8px rgba(56,198,218,0.25);
+    --bg:        #04070a;
+    --bg-2:      #060b0f;
+    --panel:     rgba(12,20,24,0.72);
+    --edge:      rgba(79,242,168,0.16);
+    --edge-soft: rgba(79,242,168,0.07);
+    --txt:       #dfeee9;
+    --txt-dim:   #6e8a84;
+    --txt-faint: #3f534f;
+    --phos:      #4ff2a8;   /* phosphor green: carry / live */
+    --drag:      #ff5e7a;   /* loss / cost */
+    --gold:      #ffc24b;   /* BTC */
+    --mint:      #4ff2a8;   /* ETH */
+    --ice:       #5fb3ff;   /* SOL */
+    --grid:      rgba(79,242,168,0.05);
   }
   * { margin:0; padding:0; box-sizing:border-box; }
-  html { -webkit-font-smoothing: antialiased; }
+  html { -webkit-font-smoothing:antialiased; }
   body {
     background:
-      radial-gradient(1200px 600px at 78% -10%, rgba(56,198,218,0.06), transparent 60%),
-      radial-gradient(900px 500px at 0% 110%, rgba(52,211,153,0.05), transparent 55%),
+      radial-gradient(900px 520px at 80% -8%, rgba(79,242,168,0.07), transparent 60%),
+      radial-gradient(800px 480px at 5% 108%, rgba(95,179,255,0.05), transparent 55%),
       var(--bg);
-    color: var(--txt);
-    font-family: "JetBrains Mono", monospace;
-    font-size: 13px;
-    line-height: 1.5;
-    min-height: 100vh;
+    color:var(--txt);
+    font-family:"JetBrains Mono",monospace;
+    font-size:13px; line-height:1.5; min-height:100vh; overflow-x:hidden;
   }
-  /* faint instrument grid */
+  /* scanlines */
   body::before {
-    content:""; position: fixed; inset:0; z-index:0; pointer-events:none;
-    background-image:
-      linear-gradient(var(--bg-grid) 1px, transparent 1px),
-      linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px);
-    background-size: 40px 40px;
-    mask-image: radial-gradient(ellipse 100% 80% at 50% 30%, #000 40%, transparent 100%);
+    content:""; position:fixed; inset:0; z-index:60; pointer-events:none; opacity:.5;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.16) 2px 3px);
+    mix-blend-mode:multiply;
   }
-  .wrap { position: relative; z-index:1; max-width: 1240px; margin: 0 auto; padding: 30px 26px 90px; }
+  /* vignette + grain */
+  body::after {
+    content:""; position:fixed; inset:0; z-index:61; pointer-events:none;
+    background:
+      radial-gradient(120% 120% at 50% 50%, transparent 55%, rgba(0,0,0,0.55) 100%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  }
+  .wrap { position:relative; z-index:1; max-width:1280px; margin:0 auto; padding:30px 26px 90px; }
 
   /* ---- header ---- */
-  header { display:flex; align-items:flex-end; justify-content:space-between; gap:20px;
-    padding-bottom:16px; border-bottom:1px solid var(--edge); margin-bottom:26px; }
+  header { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; padding-bottom:16px; margin-bottom:26px;
+    border-bottom:1px solid var(--edge); }
   .brand { display:flex; align-items:baseline; gap:14px; }
-  .brand h1 { font-family:"Fraunces",serif; font-weight:600; font-size:30px; letter-spacing:-0.01em; }
-  .brand .tag { font-size:10px; letter-spacing:0.32em; text-transform:uppercase; color:var(--txt-dim); }
-  .status { display:flex; gap:18px; align-items:center; font-size:10px; text-transform:uppercase; letter-spacing:0.16em; color:var(--txt-dim); }
-  .dot { display:inline-flex; align-items:center; gap:7px; }
-  .dot::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--carry); box-shadow:0 0 10px var(--carry); animation:pulse 2.6s ease-in-out infinite; }
-  @keyframes pulse { 50% { opacity:.3; } }
+  .brand h1 { font-family:"Chakra Petch",sans-serif; font-weight:700; font-size:27px; letter-spacing:0.06em; text-transform:uppercase;
+    color:var(--phos); text-shadow:0 0 18px rgba(79,242,168,0.45); }
+  .brand .tag { font-family:"Chakra Petch",sans-serif; font-size:10px; letter-spacing:0.34em; text-transform:uppercase; color:var(--txt-dim); }
+  .status { display:flex; gap:18px; align-items:center; font-family:"Chakra Petch",sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:0.18em; color:var(--txt-dim); }
+  .dot { display:inline-flex; align-items:center; gap:7px; color:var(--phos); }
+  .dot::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--phos); box-shadow:0 0 12px var(--phos); animation:pulse 2.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity:.25; } }
 
-  /* ---- top grid: hero + KPIs ---- */
-  .top { display:grid; grid-template-columns: 1.15fr 1fr; gap:16px; margin-bottom:16px; }
-  .panel { background:linear-gradient(180deg,var(--panel),var(--panel-2)); border:1px solid var(--edge); border-radius:12px; }
-  .panel-pad { padding:18px 20px; }
-  .panel h2 { font-family:"Fraunces",serif; font-style:italic; font-weight:500; font-size:18px; color:var(--txt); margin-bottom:2px; }
-  .panel .sub { font-size:10px; text-transform:uppercase; letter-spacing:0.18em; color:var(--txt-faint); margin-bottom:14px; }
+  /* panels with bezel corners */
+  .panel { position:relative; background:var(--panel); border:1px solid var(--edge); border-radius:12px;
+    backdrop-filter:blur(3px); box-shadow:inset 0 1px 0 rgba(255,255,255,0.03), 0 14px 40px -24px rgba(0,0,0,0.9); }
+  .panel::before, .panel::after { content:""; position:absolute; width:9px; height:9px; border-color:var(--phos); opacity:.5; }
+  .panel::before { top:7px; left:7px; border-top:1px solid; border-left:1px solid; }
+  .panel::after  { bottom:7px; right:7px; border-bottom:1px solid; border-right:1px solid; }
+  .pad { padding:18px 20px; }
+  h2 { font-family:"Chakra Petch",sans-serif; font-weight:600; font-size:15px; letter-spacing:0.04em; }
+  .sub { font-family:"Chakra Petch",sans-serif; font-size:9.5px; text-transform:uppercase; letter-spacing:0.2em; color:var(--txt-faint); margin-top:3px; }
 
-  .hero { display:flex; flex-direction:column; justify-content:space-between; box-shadow:var(--glow); }
-  .hero .lead { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
-  .hero .sym { font-family:"Fraunces",serif; font-size:40px; font-weight:600; }
-  .hero .figure { font-family:"Fraunces",serif; font-size:64px; font-weight:600; line-height:.95; letter-spacing:-0.02em; }
-  .hero .figure.pos { color:var(--carry); } .hero .figure.neg { color:var(--drag); }
-  .hero .legs { font-size:12px; color:var(--txt-dim); margin-top:6px; }
-  .hero .legs .s { color:var(--drag); } .hero .legs .l { color:var(--carry); }
-  .hero .spark { margin-top:14px; }
+  /* reveal on load */
+  .rise { opacity:0; transform:translateY(14px); animation:rise .7s cubic-bezier(.2,.7,.2,1) forwards; }
+  @keyframes rise { to { opacity:1; transform:none; } }
+
+  /* ---- top: hero + kpis ---- */
+  .top { display:grid; grid-template-columns:1.18fr 1fr; gap:16px; margin-bottom:16px; }
+  .hero { display:flex; flex-direction:column; justify-content:space-between; overflow:hidden;
+    box-shadow:inset 0 0 60px -20px rgba(79,242,168,0.25), 0 14px 40px -24px rgba(0,0,0,.9); }
+  .hero .lead { display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; margin-top:4px; }
+  .hero .sym { font-family:"Chakra Petch",sans-serif; font-weight:700; font-size:34px; letter-spacing:0.04em; }
+  .hero .figure { font-family:"JetBrains Mono",monospace; font-weight:800; font-size:70px; line-height:.9; letter-spacing:-0.03em; }
+  .hero .figure.pos { color:var(--phos); text-shadow:0 0 30px rgba(79,242,168,0.5); }
+  .hero .figure.neg { color:var(--drag); text-shadow:0 0 30px rgba(255,94,122,0.45); }
+  .hero .legs { font-size:12px; color:var(--txt-dim); margin-top:8px; }
+  .hero .legs .s { color:var(--drag); } .hero .legs .l { color:var(--phos); }
+  .hero .spark { margin-top:12px; position:relative; }
 
   .kpis { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--edge-soft); border:1px solid var(--edge); border-radius:12px; overflow:hidden; }
-  .kpi { background:linear-gradient(180deg,var(--panel),var(--panel-2)); padding:14px 16px; }
-  .kpi .k { font-size:9px; text-transform:uppercase; letter-spacing:0.18em; color:var(--txt-faint); }
-  .kpi .v { font-family:"Fraunces",serif; font-size:27px; font-weight:600; margin-top:5px; letter-spacing:-0.01em; }
-  .kpi .v.pos { color:var(--carry); } .kpi .v.neg { color:var(--drag); }
+  .kpi { background:var(--panel); padding:15px 17px; }
+  .kpi .k { font-family:"Chakra Petch",sans-serif; font-size:9px; text-transform:uppercase; letter-spacing:0.18em; color:var(--txt-faint); }
+  .kpi .v { font-family:"JetBrains Mono",monospace; font-weight:700; font-size:26px; margin-top:5px; letter-spacing:-0.02em; }
+  .kpi .v.pos { color:var(--phos); } .kpi .v.neg { color:var(--drag); }
   .kpi .d { font-size:10px; color:var(--txt-dim); margin-top:3px; }
 
-  /* ---- charts ---- */
-  .chart-panel { margin-bottom:16px; }
-  .chart-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px 6px; flex-wrap:wrap; gap:10px; }
-  .legend { display:flex; gap:16px; flex-wrap:wrap; font-size:11px; }
-  .legend .it { display:inline-flex; align-items:center; gap:7px; color:var(--txt-dim); cursor:default; }
-  .legend .swatch { width:14px; height:3px; border-radius:2px; }
+  /* ---- chart frame ---- */
+  .chart-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px 4px; flex-wrap:wrap; gap:10px; }
+  .legend { display:flex; gap:15px; flex-wrap:wrap; font-size:11px; }
+  .legend .it { display:inline-flex; align-items:center; gap:7px; color:var(--txt-dim); }
+  .legend .swatch { width:15px; height:3px; border-radius:2px; box-shadow:0 0 8px currentColor; }
   .legend .val { color:var(--txt); font-weight:500; }
   .seg { display:flex; border:1px solid var(--edge); border-radius:8px; overflow:hidden; }
-  .seg button { font-family:inherit; font-size:11px; padding:5px 12px; border:none; background:transparent; color:var(--txt-dim); cursor:pointer; border-right:1px solid var(--edge); transition:.13s; }
+  .seg button { font-family:"Chakra Petch",sans-serif; font-size:11px; padding:5px 13px; border:none; background:transparent; color:var(--txt-dim); cursor:pointer; border-right:1px solid var(--edge); transition:.14s; letter-spacing:0.04em; }
   .seg button:last-child { border-right:none; }
-  .seg button:hover { color:var(--txt); background:rgba(56,198,218,0.05); }
-  .seg button.on { background:var(--cyan); color:#06222a; font-weight:700; }
+  .seg button:hover { color:var(--txt); background:rgba(79,242,168,0.06); }
+  .seg button.on { background:var(--phos); color:#04130c; font-weight:700; box-shadow:0 0 16px -2px var(--phos); }
+  .scope { position:relative; padding:6px 14px 14px; }
   canvas { display:block; width:100%; }
-  .chart-wrap { padding: 6px 14px 16px; }
-  .twocol { display:grid; grid-template-columns:1.55fr 1fr; gap:16px; margin-bottom:16px; }
+  /* phosphor sweep */
+  .scope .sweep { position:absolute; top:6px; bottom:14px; left:60px; width:90px; pointer-events:none;
+    background:linear-gradient(90deg, transparent, rgba(79,242,168,0.10) 60%, rgba(79,242,168,0.22)); mix-blend-mode:screen;
+    animation:sweep 7s linear infinite; }
+  @keyframes sweep { 0% { transform:translateX(0); opacity:0; } 8%{opacity:1;} 92%{opacity:1;} 100% { transform:translateX(calc(100% + 1040px)); opacity:0; } }
+  #tooltip { position:absolute; z-index:30; pointer-events:none; background:rgba(4,12,10,0.95); border:1px solid var(--edge);
+    border-radius:8px; padding:8px 10px; font-size:11px; display:none; box-shadow:0 8px 24px -10px #000; min-width:120px; }
+  #tooltip .tt-t { color:var(--txt-faint); font-size:9px; text-transform:uppercase; letter-spacing:0.14em; margin-bottom:5px; }
+  #tooltip .tt-r { display:flex; justify-content:space-between; gap:14px; }
+  #tooltip .tt-r .nm { display:inline-flex; align-items:center; gap:6px; color:var(--txt-dim); }
+  #tooltip .tt-r .nm i { width:9px; height:3px; border-radius:2px; display:inline-block; }
+  #tooltip .tt-r .vv { color:var(--txt); font-weight:600; }
 
-  /* ---- tables ---- */
+  .twocol { display:grid; grid-template-columns:1.55fr 1fr; gap:16px; margin:16px 0; }
+
+  /* tables */
   table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
-  th { font-size:9px; text-transform:uppercase; letter-spacing:0.16em; color:var(--txt-faint); text-align:right; padding:9px 12px; border-bottom:1px solid var(--edge); font-weight:500; }
+  th { font-family:"Chakra Petch",sans-serif; font-size:9px; text-transform:uppercase; letter-spacing:0.16em; color:var(--txt-faint);
+    text-align:right; padding:10px 13px; border-bottom:1px solid var(--edge); font-weight:500; }
   th:first-child, td:first-child { text-align:left; }
-  td { padding:10px 12px; text-align:right; border-bottom:1px solid var(--edge-soft); font-size:12px; }
-  tbody tr:hover { background:rgba(56,198,218,0.04); }
-  td.pos { color:var(--carry); } td.neg { color:var(--drag); } td.dim { color:var(--txt-faint); }
+  td { padding:11px 13px; text-align:right; border-bottom:1px solid var(--edge-soft); font-size:12px; }
+  tbody tr { transition:background .12s; } tbody tr:hover { background:rgba(79,242,168,0.05); }
+  td.pos { color:var(--phos); } td.neg { color:var(--drag); } td.dim { color:var(--txt-faint); }
   .big { font-size:15px; font-weight:700; }
-  .leg .s { color:var(--drag); font-weight:500; } .leg .l { color:var(--carry); font-weight:500; }
-  .pill { font-size:9px; padding:2px 7px; border-radius:20px; text-transform:uppercase; letter-spacing:0.08em; }
-  .pill.open { background:rgba(52,211,153,0.14); color:var(--carry); }
-  .pill.closed { background:rgba(111,128,144,0.14); color:var(--txt-dim); }
-  .empty { text-align:center; color:var(--txt-faint); padding:22px; }
+  .leg .s { color:var(--drag); } .leg .l { color:var(--phos); }
+  .pill { font-family:"Chakra Petch",sans-serif; font-size:8.5px; padding:3px 8px; border-radius:20px; text-transform:uppercase; letter-spacing:0.1em; }
+  .pill.open { background:rgba(79,242,168,0.15); color:var(--phos); box-shadow:0 0 12px -4px var(--phos); }
+  .pill.closed { background:rgba(110,138,132,0.14); color:var(--txt-dim); }
+  .empty { text-align:center; color:var(--txt-faint); padding:24px; }
+  .sec { font-family:"Chakra Petch",sans-serif; font-weight:600; font-size:14px; letter-spacing:0.05em; text-transform:uppercase; color:var(--txt-dim); padding:2px 4px 10px; }
+  .sec b { color:var(--phos); }
+  .note { font-size:10px; color:var(--txt-faint); padding:11px 20px 16px; line-height:1.6; }
 
-  footer { margin-top:34px; padding-top:14px; border-top:1px solid var(--edge); display:flex; justify-content:space-between; font-size:10px; text-transform:uppercase; letter-spacing:0.14em; color:var(--txt-faint); }
-  .sec-title { font-family:"Fraunces",serif; font-style:italic; font-weight:500; font-size:18px; padding:0 4px 10px; }
-  .note { font-size:10px; color:var(--txt-faint); padding:10px 20px 16px; line-height:1.6; }
+  footer { margin-top:34px; padding-top:14px; border-top:1px solid var(--edge); display:flex; justify-content:space-between;
+    font-family:"Chakra Petch",sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:0.14em; color:var(--txt-faint); }
 
-  @media (max-width: 880px) { .top,.twocol { grid-template-columns:1fr; } .hero .figure{font-size:52px;} }
+  @media (max-width:880px) { .top,.twocol { grid-template-columns:1fr; } .hero .figure{font-size:54px;} }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <div class="brand">
-      <h1>Funding</h1>
-      <span class="tag">cross-venue carry · seismograph</span>
-    </div>
-    <div class="status">
-      <span id="venues">HL · dYdX · OKX</span>
-      <span id="poll">—</span>
-      <span class="dot" id="live">live</span>
-    </div>
+  <header class="rise" style="animation-delay:0s">
+    <div class="brand"><h1>Funding</h1><span class="tag">cross-venue carry scope</span></div>
+    <div class="status"><span id="venues">HL · dYdX · OKX</span><span id="poll">—</span><span class="dot" id="live">live</span></div>
   </header>
 
-  <!-- hero + KPIs -->
   <div class="top">
-    <div class="panel panel-pad hero">
+    <div class="panel pad hero rise" style="animation-delay:.05s">
       <div>
         <div class="sub">best net carry now</div>
-        <div class="lead">
-          <span class="sym" id="hero-sym">—</span>
-          <span class="figure" id="hero-net">—</span>
-        </div>
+        <div class="lead"><span class="sym" id="hero-sym">—</span><span class="figure" id="hero-net">—</span></div>
         <div class="legs" id="hero-legs"></div>
       </div>
-      <div class="spark"><canvas id="cv-spark" height="56"></canvas></div>
+      <div class="spark"><canvas id="cv-spark" height="58"></canvas></div>
     </div>
-    <div class="kpis" id="kpis"></div>
+    <div class="kpis rise" id="kpis" style="animation-delay:.1s"></div>
   </div>
 
-  <!-- main chart: net carry over time -->
-  <div class="panel chart-panel">
+  <div class="panel rise" style="animation-delay:.15s; margin-bottom:16px;">
     <div class="chart-head">
-      <div>
-        <h2>Net carry over time</h2>
-        <div class="sub">is the edge persistent, or just a spike?</div>
-      </div>
+      <div><h2>Net carry over time</h2><div class="sub">is the edge persistent, or just a spike?</div></div>
       <div style="display:flex; gap:14px; align-items:center;">
         <span class="legend" id="chart-legend"></span>
         <div class="seg" id="seg-window">
-          <button data-v="360">6h</button>
-          <button data-v="1440" class="on">24h</button>
-          <button data-v="4320">3d</button>
+          <button data-v="360">6h</button><button data-v="1440" class="on">24h</button><button data-v="4320">3d</button>
         </div>
       </div>
     </div>
-    <div class="chart-wrap"><canvas id="cv-net" height="300"></canvas></div>
-    <div class="note">annualized net carry per symbol — gross funding spread minus round-trip fills amortized over the assumed hold. Dashed line = open threshold, dotted = close. Above the open line is a tradeable pair; how long it <i>stays</i> there is the edge.</div>
+    <div class="scope" id="scope-net">
+      <span class="sweep"></span>
+      <canvas id="cv-net" height="310"></canvas>
+      <div id="tooltip"></div>
+    </div>
+    <div class="note">annualized net carry per symbol — gross funding spread minus round-trip fills amortized over the assumed hold. Solid line = open threshold, dotted = close. Above open is a tradeable pair; how long it <i>stays</i> there is the edge. Hover to read values.</div>
   </div>
 
-  <!-- equity curve + funding matrix -->
   <div class="twocol">
-    <div class="panel chart-panel" style="margin:0;">
-      <div class="chart-head"><div><h2>Paper equity</h2><div class="sub">cumulative realized net, closed positions</div></div></div>
-      <div class="chart-wrap"><canvas id="cv-equity" height="220"></canvas></div>
+    <div class="panel rise" style="animation-delay:.2s">
+      <div class="chart-head"><div><h2>Paper equity</h2><div class="sub">cumulative realized net · closed positions</div></div></div>
+      <div class="scope"><canvas id="cv-equity" height="220"></canvas></div>
     </div>
-    <div class="panel">
+    <div class="panel rise" style="animation-delay:.25s">
       <div class="chart-head"><div><h2>Funding matrix</h2><div class="sub">annualized %, by venue</div></div></div>
       <table id="matrix"><thead><tr id="matrix-head"></tr></thead><tbody></tbody></table>
     </div>
   </div>
 
-  <!-- carry board -->
-  <div class="sec-title">Carry board — best cross-venue pair per symbol</div>
-  <div class="panel" style="margin-bottom:16px;">
-    <table id="board">
-      <thead><tr>
-        <th>Symbol</th><th>Position</th><th>Short fund</th><th>Long fund</th>
-        <th>Gross</th><th>Fee drag</th><th>Net carry</th>
-      </tr></thead>
-      <tbody></tbody>
-    </table>
+  <div class="sec">Carry board — best cross-venue pair per <b>symbol</b></div>
+  <div class="panel rise" style="animation-delay:.3s; margin-bottom:16px;">
+    <table id="board"><thead><tr>
+      <th>Symbol</th><th>Position</th><th>Short fund</th><th>Long fund</th><th>Gross</th><th>Fee drag</th><th>Net carry</th>
+    </tr></thead><tbody></tbody></table>
   </div>
 
-  <!-- paper ledger -->
-  <div class="sec-title">Paper ledger — open + recent closed</div>
-  <div class="panel">
-    <table id="ledger">
-      <thead><tr>
-        <th>Symbol</th><th>Position</th><th>Status</th><th>Hold</th>
-        <th>Carry $</th><th>Basis $</th><th>Fees $</th><th>Net $</th><th>Ann %</th>
-      </tr></thead>
-      <tbody></tbody>
-    </table>
+  <div class="sec">Paper ledger — <b>open</b> + recent closed</div>
+  <div class="panel rise" style="animation-delay:.35s">
+    <table id="ledger"><thead><tr>
+      <th>Symbol</th><th>Position</th><th>Status</th><th>Hold</th><th>Carry $</th><th>Basis $</th><th>Fees $</th><th>Net $</th><th>Ann %</th>
+    </tr></thead><tbody></tbody></table>
     <div class="note">opens delta-neutral when net clears the threshold; accrues funding each tick at observed rates; closes when the spread compresses. <b>Net</b> = carry + basis − round-trip fills. Models neither own market impact nor non-atomic fills — a ceiling, not a promise.</div>
   </div>
 
-  <footer>
-    <span>backdraft · funding instrument</span>
-    <span id="updated"></span>
-  </footer>
+  <footer><span>backdraft · funding instrument</span><span id="updated"></span></footer>
 </div>
 
 <script>
-const SYM_COLOR = { BTC:"#f5b342", ETH:"#38c6da", SOL:"#cf6bd6" };
-const PALETTE = ["#f5b342","#38c6da","#cf6bd6","#34d399","#f2555a"];
+const SYM_COLOR = { BTC:"#ffc24b", ETH:"#4ff2a8", SOL:"#5fb3ff" };
+const PALETTE = ["#ffc24b","#4ff2a8","#5fb3ff","#e479ff","#ff5e7a"];
 const VENUE_LABEL = { hyperliquid:"HL", dydx:"dYdX", okx:"OKX" };
 const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-
-let state = { minutes: 1440 };
-let cfg = { takerBps:{}, holdDays:3, openPct:10, closePct:4, pollIntervalMs:60000 };
-
-const symColor = (s) => SYM_COLOR[s] || PALETTE[Math.abs([...s].reduce((a,c)=>a+c.charCodeAt(0),0)) % PALETTE.length];
-const vlabel = (v) => VENUE_LABEL[v] || v;
-const fmtPct = (v) => (v===null||v===undefined||Number.isNaN(v)) ? "—" : (v>=0?"+":"")+v.toFixed(1)+"%";
-const fmtUsd = (v) => (v===null||v===undefined||Number.isNaN(v)) ? "—" : (v>=0?"":"−")+"$"+Math.abs(v).toFixed(2);
+const symColor = (s) => SYM_COLOR[s] || PALETTE[Math.abs([...s].reduce((a,c)=>a+c.charCodeAt(0),0))%PALETTE.length];
+const vlabel = (v) => VENUE_LABEL[v]||v;
+const fmtPct = (v) => (v==null||Number.isNaN(v))?"—":(v>=0?"+":"")+v.toFixed(1)+"%";
+const fmtUsd = (v) => (v==null||Number.isNaN(v))?"—":(v>=0?"":"−")+"$"+Math.abs(v).toFixed(2);
 const usdCls = (v) => v>0?"pos":v<0?"neg":"dim";
 
-// ---- net-carry math, identical to server computeDispersion ----
-const taker = (v) => (cfg.takerBps[v] ?? 5);
-function feeAnnPct(s, l) { return (2*(taker(s)+taker(l))/100) * (365/cfg.holdDays); }
-// from a set of {venue, annualizedPct} for one symbol → best net pair
-function bestPair(rows) {
-  if (rows.length < 2) return null;
-  let hi=rows[0], lo=rows[0];
-  for (const r of rows) { if (r.annualizedPct>hi.annualizedPct) hi=r; if (r.annualizedPct<lo.annualizedPct) lo=r; }
-  if (hi.venue===lo.venue) return null;
-  const gross = hi.annualizedPct - lo.annualizedPct;
-  const net = gross - feeAnnPct(hi.venue, lo.venue);
-  return { short:hi.venue, long:lo.venue, shortAnn:hi.annualizedPct, longAnn:lo.annualizedPct, gross, net };
-}
+let state = { minutes:1440 };
+let cfg = { takerBps:{}, holdDays:3, openPct:10, closePct:4, pollIntervalMs:60000 };
+const taker = (v) => (cfg.takerBps[v]??5);
+const feeAnnPct = (s,l) => (2*(taker(s)+taker(l))/100)*(365/cfg.holdDays);
+function bestPair(rows){ if(rows.length<2)return null; let hi=rows[0],lo=rows[0];
+  for(const r of rows){ if(r.annualizedPct>hi.annualizedPct)hi=r; if(r.annualizedPct<lo.annualizedPct)lo=r; }
+  if(hi.venue===lo.venue)return null; const gross=hi.annualizedPct-lo.annualizedPct;
+  return { short:hi.venue,long:lo.venue,shortAnn:hi.annualizedPct,longAnn:lo.annualizedPct,gross,net:gross-feeAnnPct(hi.venue,lo.venue) }; }
 
-// ---- canvas line chart ----
+// ---- phosphor line chart (returns geometry for crosshair) ----
 function lineChart(canvas, series, opts={}) {
-  const dpr = window.devicePixelRatio||1, w=canvas.clientWidth, h=canvas.clientHeight;
-  canvas.width=w*dpr; canvas.height=h*dpr;
-  const ctx=canvas.getContext("2d"); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h);
-  const padL=46, padR=12, padT=12, padB=20;
-  const x0=padL, x1=w-padR, y0=padT, y1=h-padB;
-  const all = series.flatMap(s=>s.points.map(p=>p.v));
-  if (opts.refs) all.push(...opts.refs.map(r=>r.v));
-  let lo = Math.min(0, ...all), hi = Math.max(...all, 1);
-  if (!isFinite(lo)||!isFinite(hi)) { lo=0; hi=1; }
-  const padv=(hi-lo)*0.12||1; lo-=padv; hi+=padv;
-  const now=Date.now(), t0=now-state.minutes*60000;
-  const X=(t)=>x0+((t-t0)/(now-t0))*(x1-x0);
-  const Y=(v)=>y1-((v-lo)/(hi-lo))*(y1-y0);
-
-  // zero / profit tint
-  if (lo<0 && hi>0) { ctx.fillStyle="rgba(52,211,153,0.04)"; ctx.fillRect(x0,y0,x1-x0,Y(0)-y0); }
-  // y grid + labels
-  ctx.font="10px 'JetBrains Mono'"; ctx.textBaseline="middle";
-  const ticks=4;
-  for (let i=0;i<=ticks;i++){ const v=lo+(hi-lo)*i/ticks, y=Y(v);
-    ctx.strokeStyle=css("--edge-soft"); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke();
-    ctx.fillStyle=css("--txt-faint"); ctx.textAlign="right"; ctx.fillText((opts.pct?(v>=0?"+":"")+v.toFixed(0)+"%":v.toFixed(0)), x0-8, y); }
-  // reference lines (thresholds)
-  for (const r of (opts.refs||[])) { const y=Y(r.v);
-    ctx.strokeStyle=r.color||css("--txt-dim"); ctx.lineWidth=1; ctx.setLineDash(r.dash||[5,4]); ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle=r.color||css("--txt-dim"); ctx.textAlign="left"; ctx.fillText(r.label, x0+4, y-7); }
-
-  if (!series.some(s=>s.points.length)) {
-    ctx.fillStyle=css("--txt-faint"); ctx.textAlign="center"; ctx.fillText("collecting…", (x0+x1)/2, (y0+y1)/2); return;
-  }
-  for (const s of series) {
-    if (!s.points.length) continue;
-    ctx.strokeStyle=s.color; ctx.lineWidth=s.width||1.8; ctx.lineJoin="round"; ctx.beginPath();
-    s.points.forEach((p,i)=>{ const x=X(p.t),y=Y(p.v); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke();
-    if (s.fill) { ctx.lineTo(X(s.points.at(-1).t),Y(lo)); ctx.lineTo(X(s.points[0].t),Y(lo)); ctx.closePath();
-      ctx.fillStyle=s.fill; ctx.fill(); }
-    const last=s.points.at(-1); ctx.fillStyle=s.color; ctx.beginPath(); ctx.arc(X(last.t),Y(last.v),2.6,0,7); ctx.fill();
-  }
-}
-function sparkline(canvas, points, color) {
   const dpr=window.devicePixelRatio||1, w=canvas.clientWidth, h=canvas.clientHeight;
   canvas.width=w*dpr; canvas.height=h*dpr; const ctx=canvas.getContext("2d"); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h);
-  if (points.length<2) return;
-  const vs=points.map(p=>p.v); let lo=Math.min(...vs),hi=Math.max(...vs); if(hi===lo){hi+=1;lo-=1;}
-  const X=(i)=>(i/(points.length-1))*w, Y=(v)=>h-2-((v-lo)/(hi-lo))*(h-4);
-  ctx.strokeStyle=color; ctx.lineWidth=1.6; ctx.lineJoin="round"; ctx.beginPath();
-  points.forEach((p,i)=>{ const x=X(i),y=Y(p.v); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke();
-  ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
-  const g=ctx.createLinearGradient(0,0,0,h); g.addColorStop(0,color+"33"); g.addColorStop(1,color+"00"); ctx.fillStyle=g; ctx.fill();
+  const padL=52,padR=14,padT=14,padB=22, x0=padL,x1=w-padR,y0=padT,y1=h-padB;
+  const all=series.flatMap(s=>s.points.map(p=>p.v)); if(opts.refs)all.push(...opts.refs.map(r=>r.v));
+  let lo=Math.min(0,...all),hi=Math.max(...all,1); if(!isFinite(lo)||!isFinite(hi)){lo=0;hi=1;}
+  const pv=(hi-lo)*0.14||1; lo-=pv; hi+=pv;
+  const now=Date.now(), t0=now-state.minutes*60000;
+  const X=t=>x0+((t-t0)/(now-t0))*(x1-x0), Y=v=>y1-((v-lo)/(hi-lo))*(y1-y0);
+  if(lo<0&&hi>0){ ctx.fillStyle="rgba(79,242,168,0.045)"; ctx.fillRect(x0,y0,x1-x0,Y(0)-y0); }
+  ctx.font="10px 'JetBrains Mono'"; ctx.textBaseline="middle";
+  for(let i=0;i<=4;i++){ const v=lo+(hi-lo)*i/4,y=Y(v);
+    ctx.strokeStyle=css("--grid"); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke();
+    ctx.fillStyle=css("--txt-faint"); ctx.textAlign="right"; ctx.fillText(opts.pct?(v>=0?"+":"")+v.toFixed(0)+"%":v.toFixed(0), x0-9, y); }
+  for(const r of (opts.refs||[])){ const y=Y(r.v);
+    ctx.strokeStyle=r.color; ctx.lineWidth=1; ctx.setLineDash(r.dash||[5,4]); ctx.globalAlpha=.7; ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
+    ctx.fillStyle=r.color; ctx.textAlign="left"; if(r.label)ctx.fillText(r.label,x0+5,y-8); }
+  if(series.some(s=>s.points.length)){
+    for(const s of series){ if(!s.points.length)continue;
+      if(s.fill){ ctx.beginPath(); s.points.forEach((p,i)=>{const x=X(p.t),y=Y(p.v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+        ctx.lineTo(X(s.points.at(-1).t),Y(lo)); ctx.lineTo(X(s.points[0].t),Y(lo)); ctx.closePath();
+        const g=ctx.createLinearGradient(0,y0,0,y1); g.addColorStop(0,s.color+"38"); g.addColorStop(1,s.color+"00"); ctx.fillStyle=g; ctx.fill(); }
+      // glow pass
+      ctx.save(); ctx.shadowColor=s.color; ctx.shadowBlur=10; ctx.strokeStyle=s.color; ctx.lineWidth=s.width||2; ctx.lineJoin="round";
+      ctx.beginPath(); s.points.forEach((p,i)=>{const x=X(p.t),y=Y(p.v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}); ctx.stroke(); ctx.restore();
+      const last=s.points.at(-1); ctx.save(); ctx.shadowColor=s.color; ctx.shadowBlur=12; ctx.fillStyle=s.color;
+      ctx.beginPath(); ctx.arc(X(last.t),Y(last.v),3,0,7); ctx.fill(); ctx.restore(); }
+  } else { ctx.fillStyle=css("--txt-faint"); ctx.textAlign="center"; ctx.fillText("collecting…",(x0+x1)/2,(y0+y1)/2); }
+  // crosshair
+  if(opts.hoverPx!=null && opts.hoverPx>=x0 && opts.hoverPx<=x1){
+    ctx.strokeStyle="rgba(223,238,233,0.25)"; ctx.lineWidth=1; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(opts.hoverPx,y0); ctx.lineTo(opts.hoverPx,y1); ctx.stroke(); ctx.setLineDash([]); }
+  return { x0,x1,y0,y1,X,Y,t0,now };
+}
+function sparkline(canvas, pts, color){
+  const dpr=window.devicePixelRatio||1,w=canvas.clientWidth,h=canvas.clientHeight;
+  canvas.width=w*dpr; canvas.height=h*dpr; const ctx=canvas.getContext("2d"); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h);
+  if(pts.length<2)return; const vs=pts.map(p=>p.v); let lo=Math.min(...vs),hi=Math.max(...vs); if(hi===lo){hi+=1;lo-=1;}
+  const X=i=>(i/(pts.length-1))*w, Y=v=>h-3-((v-lo)/(hi-lo))*(h-6);
+  ctx.beginPath(); pts.forEach((p,i)=>{const x=X(i),y=Y(p.v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}); ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
+  const g=ctx.createLinearGradient(0,0,0,h); g.addColorStop(0,color+"40"); g.addColorStop(1,color+"00"); ctx.fillStyle=g; ctx.fill();
+  ctx.save(); ctx.shadowColor=color; ctx.shadowBlur=9; ctx.strokeStyle=color; ctx.lineWidth=1.8; ctx.lineJoin="round";
+  ctx.beginPath(); pts.forEach((p,i)=>{const x=X(i),y=Y(p.v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}); ctx.stroke(); ctx.restore();
 }
 
-// build per-symbol net-carry time series from raw snapshots
-function netSeriesFromSnaps(snaps) {
-  const bucketMs = cfg.pollIntervalMs;
-  const buckets = new Map(); // bucket -> symbol -> [{venue,annualizedPct}]
-  for (const s of snaps) {
-    const b = Math.round(s.ts/bucketMs);
-    if (!buckets.has(b)) buckets.set(b, new Map());
-    const bySym = buckets.get(b);
-    if (!bySym.has(s.symbol)) bySym.set(s.symbol, []);
-    bySym.get(s.symbol).push({ venue:s.venue, annualizedPct:s.annualizedPct });
-  }
-  const out = {}; // symbol -> [{t, v}]
-  for (const [b, bySym] of [...buckets.entries()].sort((a,b)=>a[0]-b[0])) {
-    for (const [sym, rows] of bySym) {
-      const bp = bestPair(rows); if (!bp) continue;
-      (out[sym] ||= []).push({ t:b*bucketMs, v:bp.net });
-    }
-  }
+function netSeriesFromSnaps(snaps){
+  const bm=cfg.pollIntervalMs, buckets=new Map();
+  for(const s of snaps){ const b=Math.round(s.ts/bm); if(!buckets.has(b))buckets.set(b,new Map());
+    const m=buckets.get(b); (m.get(s.symbol)||m.set(s.symbol,[]).get(s.symbol)).push({venue:s.venue,annualizedPct:s.annualizedPct}); }
+  const out={};
+  for(const [b,m] of [...buckets.entries()].sort((a,b)=>a[0]-b[0]))
+    for(const [sym,rows] of m){ const bp=bestPair(rows); if(bp)(out[sym]||=[]).push({t:b*bm,v:bp.net}); }
   return out;
 }
 
-function renderHero(board, netSeries) {
-  const best = board[0];
-  if (!best) return;
-  document.getElementById("hero-sym").textContent = best.symbol;
-  const f = document.getElementById("hero-net");
-  f.textContent = fmtPct(best.netAnnPct); f.className = "figure "+(best.netAnnPct>0?"pos":"neg");
-  document.getElementById("hero-legs").innerHTML =
-    `<span class="s">short ${vlabel(best.shortVenue)} ${fmtPct(best.shortAnnPct)}</span> &nbsp;·&nbsp; <span class="l">long ${vlabel(best.longVenue)} ${fmtPct(best.longAnnPct)}</span> &nbsp;·&nbsp; gross ${fmtPct(best.grossAnnPct)}`;
-  sparkline(document.getElementById("cv-spark"), (netSeries[best.symbol]||[]).map(p=>({v:p.v})), symColor(best.symbol));
-}
+function renderHero(board, ns){ const best=board[0]; if(!best)return;
+  document.getElementById("hero-sym").textContent=best.symbol;
+  const f=document.getElementById("hero-net"); f.textContent=fmtPct(best.netAnnPct); f.className="figure "+(best.netAnnPct>0?"pos":"neg");
+  document.getElementById("hero-legs").innerHTML=`<span class="s">short ${vlabel(best.shortVenue)} ${fmtPct(best.shortAnnPct)}</span> · <span class="l">long ${vlabel(best.longVenue)} ${fmtPct(best.longAnnPct)}</span> · gross ${fmtPct(best.grossAnnPct)}`;
+  sparkline(document.getElementById("cv-spark"), (ns[best.symbol]||[]).map(p=>({v:p.v})), symColor(best.symbol)); }
 
-function renderKpis(paper) {
-  const s = paper.stats;
-  document.getElementById("kpis").innerHTML = `
+function renderKpis(p){ const s=p.stats;
+  document.getElementById("kpis").innerHTML=`
     <div class="kpi"><div class="k">open positions</div><div class="v">${s.open}</div><div class="d">unreal ${fmtUsd(s.openUnrealizedUsd)}</div></div>
     <div class="kpi"><div class="k">closed net</div><div class="v ${s.closedNetUsd>=0?"pos":"neg"}">${fmtUsd(s.closedNetUsd)}</div><div class="d">${s.closed} trips</div></div>
     <div class="kpi"><div class="k">mean realized</div><div class="v ${s.meanRealizedAnnPct>=0?"pos":"neg"}">${fmtPct(s.meanRealizedAnnPct)}</div><div class="d">${s.meanHoldDays.toFixed(2)}d hold</div></div>
-    <div class="kpi"><div class="k">win rate</div><div class="v">${(s.winRate*100).toFixed(0)}%</div><div class="d">carry ${fmtUsd(s.closedCarryUsd)} · fees ${fmtUsd(-s.closedFeesUsd)}</div></div>`;
-}
+    <div class="kpi"><div class="k">win rate</div><div class="v">${(s.winRate*100).toFixed(0)}%</div><div class="d">carry ${fmtUsd(s.closedCarryUsd)} · fees ${fmtUsd(-s.closedFeesUsd)}</div></div>`; }
 
-function renderNetChart(netSeries) {
-  const syms = Object.keys(netSeries).sort();
-  lineChart(document.getElementById("cv-net"),
-    syms.map(s=>({ points:netSeries[s], color:symColor(s) })),
-    { pct:true, refs:[
-      { v:cfg.openPct, label:`open ${cfg.openPct}%`, color:css("--carry"), dash:[6,4] },
-      { v:cfg.closePct, label:`close ${cfg.closePct}%`, color:css("--txt-dim"), dash:[2,4] },
-    ]});
-  document.getElementById("chart-legend").innerHTML = syms.map(s=>{
-    const last=netSeries[s].at(-1);
-    return `<span class="it"><span class="swatch" style="background:${symColor(s)}"></span>${s} <span class="val">${last?fmtPct(last.v):"—"}</span></span>`;
-  }).join("");
-}
+let netGeom=null, netSeriesCache=null;
+function renderNetChart(ns){ const syms=Object.keys(ns).sort(); netSeriesCache=syms.map(s=>({sym:s,points:ns[s],color:symColor(s)}));
+  drawNet();
+  document.getElementById("chart-legend").innerHTML=syms.map(s=>{const last=ns[s].at(-1);
+    return `<span class="it"><span class="swatch" style="background:${symColor(s)};color:${symColor(s)}"></span>${s} <span class="val">${last?fmtPct(last.v):"—"}</span></span>`;}).join(""); }
+function drawNet(hoverPx){ if(!netSeriesCache)return;
+  netGeom=lineChart(document.getElementById("cv-net"), netSeriesCache.map(s=>({points:s.points,color:s.color})),
+    { pct:true, hoverPx, refs:[ {v:cfg.openPct,label:`open ${cfg.openPct}%`,color:css("--phos"),dash:[7,0]},
+      {v:cfg.closePct,label:`close ${cfg.closePct}%`,color:css("--txt-dim"),dash:[2,4]} ] }); }
 
-function renderEquity(paper) {
-  const closed = [...paper.closed].filter(p=>p.closedTs).sort((a,b)=>a.closedTs-b.closedTs);
-  let cum=0; const pts = closed.map(p=>({ t:p.closedTs, v:(cum+=p.totalPnl) }));
-  lineChart(document.getElementById("cv-equity"),
-    [{ points: pts, color:css("--carry"), fill:"rgba(52,211,153,0.08)" }],
-    { refs:[{ v:0, label:"", color:css("--edge"), dash:[3,3] }] });
-}
+function renderEquity(p){ const closed=[...p.closed].filter(x=>x.closedTs).sort((a,b)=>a.closedTs-b.closedTs);
+  let c=0; const pts=closed.map(x=>({t:x.closedTs,v:(c+=x.totalPnl)}));
+  lineChart(document.getElementById("cv-equity"), [{points:pts,color:css("--phos"),fill:css("--phos")}],
+    { refs:[{v:0,label:"",color:css("--edge"),dash:[3,3]}] }); }
 
-function renderMatrix(latest) {
-  const venues=[...new Set(latest.map(s=>s.venue))].sort();
-  const syms=[...new Set(latest.map(s=>s.symbol))].sort();
-  document.getElementById("matrix-head").innerHTML = `<th>Sym</th>`+venues.map(v=>`<th>${vlabel(v)}</th>`).join("")+`<th>Spread</th>`;
+function renderMatrix(latest){ const venues=[...new Set(latest.map(s=>s.venue))].sort(), syms=[...new Set(latest.map(s=>s.symbol))].sort();
+  document.getElementById("matrix-head").innerHTML=`<th>Sym</th>`+venues.map(v=>`<th>${vlabel(v)}</th>`).join("")+`<th>Spread</th>`;
   const get=(sym,v)=>latest.find(s=>s.symbol===sym&&s.venue===v)?.annualizedPct;
-  document.querySelector("#matrix tbody").innerHTML = syms.map(sym=>{
-    const vals=venues.map(v=>get(sym,v)); const present=vals.filter(x=>x!==undefined);
-    const spread=present.length>=2?Math.max(...present)-Math.min(...present):null;
-    const cells=vals.map((x,i)=> x===undefined?`<td class="dim">—</td>`:`<td style="color:${css('--txt')}">${fmtPct(x)}</td>`).join("");
-    return `<tr><td><b>${sym}</b></td>${cells}<td class="${spread>0?"pos":"dim"}">${spread===null?"—":fmtPct(spread)}</td></tr>`;
-  }).join("");
-}
+  document.querySelector("#matrix tbody").innerHTML=syms.map(sym=>{ const vals=venues.map(v=>get(sym,v)), pr=vals.filter(x=>x!=null);
+    const sp=pr.length>=2?Math.max(...pr)-Math.min(...pr):null;
+    const cells=vals.map(x=>x==null?`<td class="dim">—</td>`:`<td>${fmtPct(x)}</td>`).join("");
+    return `<tr><td><b>${sym}</b></td>${cells}<td class="${sp>0?"pos":"dim"}">${sp==null?"—":fmtPct(sp)}</td></tr>`; }).join(""); }
 
-function renderBoard(board) {
-  const tb=document.querySelector("#board tbody");
-  if (!board.length){ tb.innerHTML=`<tr><td colspan="7" class="empty">need ≥2 venues pricing a symbol</td></tr>`; return; }
-  tb.innerHTML = board.map(c=>`<tr>
-    <td><b>${c.symbol}</b></td>
+function renderBoard(b){ const tb=document.querySelector("#board tbody");
+  if(!b.length){tb.innerHTML=`<tr><td colspan="7" class="empty">need ≥2 venues pricing a symbol</td></tr>`;return;}
+  tb.innerHTML=b.map(c=>`<tr><td><b>${c.symbol}</b></td>
     <td class="leg"><span class="s">S ${vlabel(c.shortVenue)}</span> / <span class="l">L ${vlabel(c.longVenue)}</span></td>
-    <td>${fmtPct(c.shortAnnPct)}</td><td>${fmtPct(c.longAnnPct)}</td>
-    <td>${fmtPct(c.grossAnnPct)}</td><td class="dim">−${c.feeAnnPct.toFixed(1)}%</td>
-    <td class="${c.netAnnPct>0?"pos":"neg"} big">${fmtPct(c.netAnnPct)}</td></tr>`).join("");
-}
+    <td>${fmtPct(c.shortAnnPct)}</td><td>${fmtPct(c.longAnnPct)}</td><td>${fmtPct(c.grossAnnPct)}</td>
+    <td class="dim">−${c.feeAnnPct.toFixed(1)}%</td><td class="${c.netAnnPct>0?"pos":"neg"} big">${fmtPct(c.netAnnPct)}</td></tr>`).join(""); }
 
-function renderLedger(paper) {
-  const rows=[...paper.open.map(p=>({...p,_open:true})), ...paper.closed.map(p=>({...p,_open:false}))];
+function renderLedger(p){ const rows=[...p.open.map(x=>({...x,_o:true})),...p.closed.map(x=>({...x,_o:false}))];
   const tb=document.querySelector("#ledger tbody");
-  if (!rows.length){ tb.innerHTML=`<tr><td colspan="9" class="empty">no positions yet — waiting for a pair to clear the open threshold</td></tr>`; return; }
+  if(!rows.length){tb.innerHTML=`<tr><td colspan="9" class="empty">no positions yet — waiting for a pair to clear the open threshold</td></tr>`;return;}
   const now=Date.now();
-  tb.innerHTML = rows.map(p=>{
-    const holdD=((p.closedTs??now)-p.openedTs)/86400000;
-    const hold = holdD>=1?holdD.toFixed(1)+"d":Math.max(1,Math.round(holdD*24))+"h";
-    const fees = p._open?2*p.feePaid:p.totalFee;
-    const net  = p._open?p.carryPnl-2*p.feePaid:p.totalPnl;
-    const basis= p._open?null:p.basisPnl;
-    const ann  = p._open?null:p.realizedAnnPct;
-    return `<tr>
-      <td><b>${p.symbol}</b></td>
+  tb.innerHTML=rows.map(p=>{ const hd=((p.closedTs??now)-p.openedTs)/86400000, hold=hd>=1?hd.toFixed(1)+"d":Math.max(1,Math.round(hd*24))+"h";
+    const fees=p._o?2*p.feePaid:p.totalFee, net=p._o?p.carryPnl-2*p.feePaid:p.totalPnl, basis=p._o?null:p.basisPnl, ann=p._o?null:p.realizedAnnPct;
+    return `<tr><td><b>${p.symbol}</b></td>
       <td class="leg"><span class="s">S ${vlabel(p.shortVenue)}</span>/<span class="l">L ${vlabel(p.longVenue)}</span></td>
-      <td><span class="pill ${p._open?"open":"closed"}">${p._open?"open":"closed"}</span></td>
-      <td>${hold}</td>
-      <td class="${usdCls(p.carryPnl)}">${fmtUsd(p.carryPnl)}</td>
-      <td class="${basis===null?"dim":usdCls(basis)}">${basis===null?"—":fmtUsd(basis)}</td>
-      <td class="dim">${fmtUsd(-fees)}</td>
-      <td class="${usdCls(net)} big">${fmtUsd(net)}</td>
-      <td class="${ann===null?"dim":usdCls(ann)}">${ann===null?"live":fmtPct(ann)}</td></tr>`;
-  }).join("");
-}
+      <td><span class="pill ${p._o?"open":"closed"}">${p._o?"open":"closed"}</span></td><td>${hold}</td>
+      <td class="${usdCls(p.carryPnl)}">${fmtUsd(p.carryPnl)}</td><td class="${basis==null?"dim":usdCls(basis)}">${basis==null?"—":fmtUsd(basis)}</td>
+      <td class="dim">${fmtUsd(-fees)}</td><td class="${usdCls(net)} big">${fmtUsd(net)}</td>
+      <td class="${ann==null?"dim":usdCls(ann)}">${ann==null?"live":fmtPct(ann)}</td></tr>`; }).join(""); }
 
-let lastSnaps=null, lastBoard=null, lastPaper=null;
-function redrawCharts() {
-  if (!lastSnaps) return;
-  const netSeries = netSeriesFromSnaps(lastSnaps);
-  renderNetChart(netSeries);
-  renderHero(lastBoard, netSeries);
-  if (lastPaper) renderEquity(lastPaper);
-}
+// crosshair tooltip on net chart
+const scope=document.getElementById("scope-net"), tip=document.getElementById("tooltip"), cvNet=document.getElementById("cv-net");
+cvNet.addEventListener("mousemove",(e)=>{ if(!netGeom||!netSeriesCache)return;
+  const r=cvNet.getBoundingClientRect(), px=e.clientX-r.left;
+  if(px<netGeom.x0||px>netGeom.x1){ tip.style.display="none"; drawNet(); return; }
+  drawNet(px);
+  const t=netGeom.t0+((px-netGeom.x0)/(netGeom.x1-netGeom.x0))*(netGeom.now-netGeom.t0);
+  let rows="";
+  for(const s of netSeriesCache){ if(!s.points.length)continue;
+    let np=s.points[0]; for(const p of s.points) if(Math.abs(p.t-t)<Math.abs(np.t-t))np=p;
+    rows+=`<div class="tt-r"><span class="nm"><i style="background:${s.color}"></i>${s.sym}</span><span class="vv">${fmtPct(np.v)}</span></div>`; }
+  let near=netSeriesCache[0]?.points[0]; for(const s of netSeriesCache)for(const p of s.points) if(!near||Math.abs(p.t-t)<Math.abs(near.t-t))near=p;
+  tip.innerHTML=`<div class="tt-t">${new Date(near?near.t:t).toLocaleTimeString()}</div>${rows}`;
+  tip.style.display="block";
+  const tw=tip.offsetWidth; tip.style.left=Math.min(px+14, r.width-tw-6)+"px"; tip.style.top="18px"; });
+cvNet.addEventListener("mouseleave",()=>{ tip.style.display="none"; drawNet(); });
 
-async function refresh() {
-  try {
-    const [board, latest, paper, series, status] = await Promise.all([
-      fetch("/api/board").then(r=>r.json()),
-      fetch("/api/latest").then(r=>r.json()),
-      fetch("/api/paper?limit=80").then(r=>r.json()),
-      fetch(`/api/series?minutes=${state.minutes}`).then(r=>r.json()),
-      fetch("/api/status").then(r=>r.json()),
-    ]);
-    cfg = { ...cfg, ...status };
-    lastBoard=board; lastPaper=paper; lastSnaps=series;
-    document.getElementById("venues").textContent = status.venues.map(v=>`${vlabel(v.name)} ${v.intervalHours}h`).join(" · ");
-    document.getElementById("poll").textContent = "poll "+Math.round(status.pollIntervalMs/1000)+"s";
-    renderKpis(paper); renderBoard(board); renderLedger(paper); renderMatrix(latest);
-    redrawCharts();
-    document.getElementById("updated").textContent = "updated "+new Date().toLocaleTimeString();
-    document.getElementById("live").style.opacity = 1;
-  } catch(e) { document.getElementById("live").textContent="signal lost"; }
-}
+let lastSnaps=null,lastBoard=null,lastPaper=null;
+function redrawCharts(){ if(!lastSnaps)return; const ns=netSeriesFromSnaps(lastSnaps); renderNetChart(ns); renderHero(lastBoard,ns); if(lastPaper)renderEquity(lastPaper); }
 
-document.getElementById("seg-window").addEventListener("click",(e)=>{
-  const b=e.target.closest("button"); if(!b) return;
-  for (const x of b.parentElement.children) x.classList.remove("on");
-  b.classList.add("on"); state.minutes=Number(b.dataset.v); refresh();
-});
+async function refresh(){ try{
+  const [board,latest,paper,series,status]=await Promise.all([
+    fetch("/api/board").then(r=>r.json()), fetch("/api/latest").then(r=>r.json()),
+    fetch("/api/paper?limit=80").then(r=>r.json()), fetch(`/api/series?minutes=${state.minutes}`).then(r=>r.json()),
+    fetch("/api/status").then(r=>r.json()) ]);
+  cfg={...cfg,...status}; lastBoard=board; lastPaper=paper; lastSnaps=series;
+  document.getElementById("venues").textContent=status.venues.map(v=>`${vlabel(v.name)} ${v.intervalHours}h`).join(" · ");
+  document.getElementById("poll").textContent="poll "+Math.round(status.pollIntervalMs/1000)+"s";
+  renderKpis(paper); renderBoard(board); renderLedger(paper); renderMatrix(latest); redrawCharts();
+  document.getElementById("updated").textContent="updated "+new Date().toLocaleTimeString();
+  document.getElementById("live").style.opacity=1;
+}catch(e){ document.getElementById("live").textContent="signal lost"; } }
+
+document.getElementById("seg-window").addEventListener("click",(e)=>{ const b=e.target.closest("button"); if(!b)return;
+  for(const x of b.parentElement.children)x.classList.remove("on"); b.classList.add("on"); state.minutes=Number(b.dataset.v); refresh(); });
 window.addEventListener("resize", redrawCharts);
-refresh();
-setInterval(refresh, 30000);
+refresh(); setInterval(refresh, 30000);
 </script>
 </body>
 </html>
