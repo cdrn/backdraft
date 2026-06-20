@@ -4,8 +4,15 @@
 // Binance & Bybit geoblock our IP, so the tradeable universe is the on-chain
 // venues (Hyperliquid, dYdX v4) + OKX as an 8h-interval counterparty.
 
-// Canonical underlyings tracked across every venue.
-export const SYMBOLS = (process.env.FUNDING_SYMBOLS ?? "BTC,ETH,SOL").split(",");
+// Canonical underlyings tracked across every venue. The alt set is where the
+// fat, sticky dispersion lives (majors have uniform funding). All verified to
+// list on ≥3 of the 4 venues with the plain symbol name; a venue missing one
+// just doesn't contribute to that pair. (PEPE/BONK excluded for now — HL
+// k-prefixes them, kPEPE/kBONK, which needs a name+scale mapping.)
+export const SYMBOLS = (
+  process.env.FUNDING_SYMBOLS ??
+  "BTC,ETH,SOL,AVAX,LINK,ARB,OP,DOGE,SUI,SEI,NEAR,APT,WIF,XRP,BNB,ADA"
+).split(",");
 
 export const FUNDING_POLL_INTERVAL_MS = Number(
   process.env.FUNDING_POLL_INTERVAL_MS ?? 60_000,
