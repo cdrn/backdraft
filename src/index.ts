@@ -37,6 +37,25 @@ const CHAINS: ChainConfig[] = [
 const SCORE_THRESHOLD = 30;
 const EXECUTE_THRESHOLD = 50;
 
+// Telegram alerting is far noisier than it's worth — most flagged contracts
+// are empty auto-deployed honeypots with no victim inflow (see forensics).
+// We still save everything to the DB at SCORE_THRESHOLD; we only *ping* on
+// signal: a high enough score AND either meaningful held value or an
+// actionable tag. All env-tunable so it can be dialed from the box.
+const ALERT_SCORE_THRESHOLD = Number(process.env.ALERT_SCORE_THRESHOLD ?? 50);
+const ALERT_MIN_USD = Number(process.env.ALERT_MIN_USD ?? 500);
+const ALERT_ACTIONABLE_TAGS = (
+  process.env.ALERT_ACTIONABLE_TAGS ?? "snipeable,open-withdrawal"
+).split(",");
+
+function shouldAlert(result: { score: number; meta: Record<string, unknown>; tags: Set<string> }): boolean {
+  if (result.score < ALERT_SCORE_THRESHOLD) return false;
+  // actionable findings (we could trade/withdraw) are worth a ping regardless
+  if (ALERT_ACTIONABLE_TAGS.some((t) => result.tags.has(t))) return true;
+  // otherwise it must actually hold value — a $0 honeypot is noise
+  return Number(result.meta.estimatedUsd ?? 0) >= ALERT_MIN_USD;
+}
+
 async function main() {
   console.log("Backdraft - Contract Deployment Scanner");
   console.log("=======================================\n");
@@ -102,7 +121,7 @@ async function main() {
       if (result.score >= SCORE_THRESHOLD) {
         totalFlagged++;
         console.log(formatResult(result));
-        tg.alertFinding(result);
+        if (shouldAlert(result)) tg.alertFinding(result);
       }
 
       if (!executor) return;
