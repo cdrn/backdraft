@@ -9,18 +9,22 @@ services:
     volumes:
       - backdraft-data:/app/data
 
-  # Delta — venue-basis seismograph. Same image, separate process so the
-  # dataset never gaps while the scanner/executor container churns.
+  # Seismographs — delta (stablecoin venue-basis, :4747) + funding
+  # (cross-venue perp funding-basis, :4748) in one process. Same image,
+  # separate container from the scanner/executor so the datasets never gap
+  # while that churns. Both are calm poll loops, so they share a container.
   delta:
     image: ghcr.io/cdrn/backdraft:latest
     container_name: delta
     restart: unless-stopped
     env_file: .env
-    command: ["node", "dist/delta/main.js"]
+    command: ["node", "dist/seismograph.js"]
     environment:
       - DELTA_DB_PATH=/app/data/delta.db
+      - FUNDING_DB_PATH=/app/data/funding.db
     ports:
       - "127.0.0.1:4747:4747"
+      - "127.0.0.1:4748:4748"
     volumes:
       - delta-data:/app/data
 

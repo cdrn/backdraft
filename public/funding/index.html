@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FUNDINGHOUND — Cross-Venue Carry Observatory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f3ecdc;
+    --paper-dark: #e9e0cb;
+    --grid-major: rgba(166, 88, 60, 0.28);
+    --grid-minor: rgba(166, 88, 60, 0.12);
+    --ink: #1a1610;
+    --ink-soft: #4a4338;
+    --red: #b3361e;
+    --green: #205c3b;
+    --brass: #8a6d3b;
+    --hl: #1a1610;
+    --dydx: #15457a;
+    --okx: #205c3b;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13px;
+    min-height: 100vh;
+    position: relative;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 10;
+  }
+  .station { max-width: 1100px; margin: 0 auto; padding: 36px 28px 80px; }
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-top: 3px double var(--ink);
+    border-bottom: 1px solid var(--ink);
+    padding: 14px 4px 12px;
+    margin-bottom: 8px;
+  }
+  h1 {
+    font-family: "Instrument Serif", serif;
+    font-weight: 400;
+    font-size: 42px;
+    letter-spacing: 0.01em;
+  }
+  h1 .hound { font-style: italic; }
+  .plate {
+    text-align: right;
+    font-size: 11px;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    line-height: 1.7;
+  }
+  .plate .live { color: var(--red); }
+  .plate .live::before {
+    content: "●";
+    margin-right: 6px;
+    animation: blink 2.4s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0.15; } }
+  .subtitle {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: var(--ink-soft);
+    padding: 6px 4px 22px;
+  }
+  h2 {
+    font-family: "Instrument Serif", serif;
+    font-weight: 400;
+    font-size: 24px;
+    font-style: italic;
+    margin-bottom: 12px;
+  }
+  section { margin-bottom: 44px; }
+  .note {
+    margin-top: 8px;
+    font-size: 10px;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    line-height: 1.6;
+  }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--brass);
+    text-align: right;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--ink);
+    font-weight: 500;
+  }
+  th:first-child, td:first-child { text-align: left; }
+  td {
+    padding: 8px 10px;
+    text-align: right;
+    border-bottom: 1px dotted rgba(26, 22, 16, 0.25);
+    font-size: 12px;
+  }
+  td.hot { color: var(--green); font-weight: 600; }
+  td.neg { color: var(--red); }
+  td.dim { color: rgba(74, 67, 56, 0.55); }
+  .venue-tag {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+  }
+  .leg { font-weight: 600; }
+  .leg .short { color: var(--red); }
+  .leg .long { color: var(--green); }
+  .big { font-family: "Instrument Serif", serif; font-size: 20px; }
+
+  .cards { display: flex; gap: 0; flex-wrap: wrap; border: 1px solid var(--ink);
+    margin-bottom: 14px; background: var(--paper); box-shadow: 3px 3px 0 rgba(26,22,16,0.12); }
+  .cards .stat { flex: 1; min-width: 150px; padding: 12px 16px; border-right: 1px solid rgba(26,22,16,0.25); }
+  .cards .stat:last-child { border-right: none; }
+  .cards .stat .label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--brass); margin-bottom: 5px; }
+  .cards .stat .figure { font-family: "Instrument Serif", serif; font-size: 26px; font-variant-numeric: tabular-nums; }
+  .cards .stat .figure.good { color: var(--green); }
+  .cards .stat .sub { font-size: 10px; color: var(--ink-soft); margin-top: 3px; }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 12px;
+    border-top: 3px double var(--ink);
+    font-size: 10px;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+<div class="station">
+  <header>
+    <h1>FUNDING<span class="hound">HOUND</span></h1>
+    <div class="plate">
+      <div>Cross-Venue Perp Funding Carry · Backdraft</div>
+      <div>HL · dYdX · OKX &nbsp;·&nbsp; <span id="poll">—</span></div>
+      <div class="live" id="live-label">RECORDING</div>
+    </div>
+  </header>
+  <div class="subtitle">Delta-neutral carry: short the rich-funding venue, long the cheap one · figures are annualized %, net of round-trip fills</div>
+
+  <!-- the headline: best carry right now -->
+  <section>
+    <h2>Top carry — net annualized</h2>
+    <div id="top-cards" class="cards"></div>
+    <div class="note">net = funding differential (annualized) minus entry+exit taker fees on BOTH legs, amortized over the assumed hold. A positive net is a delta-neutral pair that out-earns its own fills at that hold.</div>
+  </section>
+
+  <!-- per-symbol carry board -->
+  <section>
+    <h2>Carry board — best cross-venue pair per symbol</h2>
+    <table id="board-table">
+      <thead>
+        <tr>
+          <th>Symbol</th><th>Position</th><th>Short funding</th>
+          <th>Long funding</th><th>Gross spread</th><th>Fee drag</th><th>Net carry</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div class="note">short the venue with the highest funding (you receive), long the lowest (you pay least) · equal notional ⇒ delta-neutral · all rates annualized %</div>
+  </section>
+
+  <!-- raw funding matrix -->
+  <section>
+    <h2>Funding matrix — annualized % by venue</h2>
+    <table id="matrix-table">
+      <thead><tr id="matrix-head"></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="note">raw funding per venue per symbol, annualized for the venue's interval (HL/dYdX hourly, OKX 8h) · the spread across a row is the dispersion the carry board trades</div>
+  </section>
+
+  <footer>
+    <span>backdraft funding — cross-venue carry instrument · paper-first, carry ledger pending</span>
+    <span id="updated"></span>
+  </footer>
+</div>
+
+<script>
+const VENUE_COLOR = { hyperliquid: "#1a1610", dydx: "#15457a", okx: "#205c3b" };
+const VENUE_LABEL = { hyperliquid: "HL", dydx: "dYdX", okx: "OKX" };
+
+function fmtPct(v) {
+  if (v === null || v === undefined || Number.isNaN(v)) return "—";
+  return (v >= 0 ? "+" : "") + v.toFixed(1) + "%";
+}
+function vlabel(v) { return VENUE_LABEL[v] || v; }
+
+function renderTop(board) {
+  const top = board.slice(0, 3);
+  const el = document.getElementById("top-cards");
+  if (!top.length) {
+    el.innerHTML = `<div class="stat"><div class="label">awaiting signal</div><div class="figure">—</div></div>`;
+    return;
+  }
+  el.innerHTML = top.map((c) => `
+    <div class="stat">
+      <div class="label">${c.symbol} · ${c.venuesSeen} venues</div>
+      <div class="figure ${c.netAnnPct > 0 ? "good" : ""}">${fmtPct(c.netAnnPct)}</div>
+      <div class="sub"><span style="color:var(--red)">short ${vlabel(c.shortVenue)}</span> / <span style="color:var(--green)">long ${vlabel(c.longVenue)}</span> · gross ${fmtPct(c.grossAnnPct)}</div>
+    </div>`).join("");
+}
+
+function renderBoard(board) {
+  const tbody = document.querySelector("#board-table tbody");
+  if (!board.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--ink-soft)">no pair yet — need ≥2 venues pricing a symbol</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = board.map((c) => {
+    const netCls = c.netAnnPct > 0 ? "hot" : "neg";
+    return `<tr>
+      <td><b>${c.symbol}</b></td>
+      <td class="leg"><span class="short">short ${vlabel(c.shortVenue)}</span> / <span class="long">long ${vlabel(c.longVenue)}</span></td>
+      <td>${fmtPct(c.shortAnnPct)}</td>
+      <td>${fmtPct(c.longAnnPct)}</td>
+      <td>${fmtPct(c.grossAnnPct)}</td>
+      <td class="dim">−${c.feeAnnPct.toFixed(1)}% · ${c.holdDays}d hold</td>
+      <td class="${netCls} big">${fmtPct(c.netAnnPct)}</td>
+    </tr>`;
+  }).join("");
+}
+
+function renderMatrix(latest) {
+  const venues = [...new Set(latest.map((s) => s.venue))].sort();
+  const symbols = [...new Set(latest.map((s) => s.symbol))].sort();
+  document.getElementById("matrix-head").innerHTML =
+    `<th>Symbol</th>` + venues.map((v) => `<th>${vlabel(v)}</th>`).join("") + `<th>Spread</th>`;
+  const get = (sym, ven) => latest.find((s) => s.symbol === sym && s.venue === ven);
+  document.querySelector("#matrix-table tbody").innerHTML = symbols.map((sym) => {
+    const vals = venues.map((v) => get(sym, v)?.annualizedPct);
+    const present = vals.filter((x) => x !== undefined);
+    const spread = present.length >= 2 ? Math.max(...present) - Math.min(...present) : null;
+    const cells = venues.map((v, i) => {
+      const x = vals[i];
+      if (x === undefined) return `<td class="dim">—</td>`;
+      return `<td style="color:${VENUE_COLOR[v] || "var(--ink)"}">${fmtPct(x)}</td>`;
+    }).join("");
+    return `<tr><td><b>${sym}</b></td>${cells}<td class="${spread > 0 ? "hot" : "dim"}">${spread === null ? "—" : fmtPct(spread)}</td></tr>`;
+  }).join("");
+}
+
+async function refresh() {
+  try {
+    const [board, latest, status] = await Promise.all([
+      fetch("/api/board").then((r) => r.json()),
+      fetch("/api/latest").then((r) => r.json()),
+      fetch("/api/status").then((r) => r.json()),
+    ]);
+    renderTop(board);
+    renderBoard(board);
+    renderMatrix(latest);
+    document.getElementById("poll").textContent =
+      "poll " + Math.round(status.pollIntervalMs / 1000) + "s";
+    document.getElementById("updated").textContent =
+      "last reading " + new Date().toLocaleTimeString();
+    document.getElementById("live-label").textContent = "RECORDING";
+  } catch (err) {
+    document.getElementById("live-label").textContent = "SIGNAL LOST";
+  }
+}
+refresh();
+setInterval(refresh, 30000);
+</script>
+</body>
+</html>

@@ -10,7 +10,9 @@
     "start": "node dist/index.js",
     "delta": "tsx src/delta/main.ts",
     "delta:backfill": "tsx src/delta/backfill.ts",
-    "start:delta": "node dist/delta/main.js"
+    "start:delta": "node dist/delta/main.js",
+    "funding": "tsx src/funding/main.ts",
+    "start:funding": "node dist/funding/main.js"
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",
