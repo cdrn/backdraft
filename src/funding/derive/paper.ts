@@ -6,12 +6,12 @@ import {
   MIN_HOLD_HOURS,
   OPEN_CONFIRM_TICKS,
   SPREAD_EMA_ALPHA,
-  VENUE_TAKER_BPS,
 } from "../config.js";
 import type { Store } from "../store.js";
 import type { FundingSnapshot } from "../types.js";
 import type { DispersionCell } from "./dispersion.js";
-import { impactAt, type BookImpact } from "./impact.js";
+import { legCost } from "./exec.js";
+import type { BookImpact } from "./impact.js";
 
 // Carry-aware paper ledger — the honest "is this real money" test, without
 // spending any. Unlike the delta ledger (open→settle next tick, a spatial
@@ -61,24 +61,9 @@ export interface PaperStats {
   winRate: number; // fraction of closed positions net-positive
 }
 
-const takerBps = (v: string): number => VENUE_TAKER_BPS[v] ?? 5;
-
-// Cost (bps of notional) to trade one leg, from the measured book where we
-// have it: impact-from-mid (spread + depth) + the exchange taker fee. If no
-// book was fetched this tick → taker only (transient, don't punish). If the
-// book exists but can't fill the size → thin=true (caller decides).
-function legFillBps(
-  imp: BookImpact | undefined,
-  venue: string,
-  side: "buy" | "sell",
-  notional: number,
-): { bps: number; thin: boolean } {
-  const t = takerBps(venue);
-  if (!imp) return { bps: t, thin: false };
-  const x = impactAt(imp, side, notional);
-  if (x === null) return { bps: t, thin: true };
-  return { bps: x + t, thin: false };
-}
+// one-leg fill cost via the shared execution-cost model (taker/maker/blend) —
+// the same function the board uses, so ledger and board can't drift.
+const legFillBps = legCost;
 
 export class PaperLedger {
   // in-memory anti-whipsaw state (resets on restart, which is safe — counters

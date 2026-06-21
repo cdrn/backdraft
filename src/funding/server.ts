@@ -2,9 +2,12 @@ import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  ADVERSE_SELECTION_BPS,
   ASSUMED_HOLD_DAYS,
   DISPERSION_CLOSE_PCT,
   DISPERSION_OPEN_PCT,
+  FUNDING_EXEC_STYLE,
+  VENUE_MAKER_BPS,
   FUNDING_POLL_INTERVAL_MS,
   FUNDING_PORT,
   FUNDING_PUBLIC_DIR,
@@ -64,6 +67,9 @@ export function startServer(store: Store): void {
         // fee model + thresholds so the dash computes net carry honestly,
         // matching computeDispersion exactly.
         takerBps: VENUE_TAKER_BPS,
+        makerBps: VENUE_MAKER_BPS,
+        execStyle: FUNDING_EXEC_STYLE,
+        adverseBps: ADVERSE_SELECTION_BPS,
         holdDays: ASSUMED_HOLD_DAYS,
         openPct: DISPERSION_OPEN_PCT,
         closePct: DISPERSION_CLOSE_PCT,

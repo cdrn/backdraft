@@ -49,6 +49,39 @@ export const VENUE_TAKER_BPS: Record<string, number> = {
   spot: Number(process.env.FUNDING_SPOT_TAKER_BPS ?? 5),
 };
 
+// Base-tier MAKER fees (bps). A patient carry trade rests limit orders rather
+// than crossing the book — so it pays maker, captures the spread instead of
+// crossing it, and skips the depth-impact that dominates taker cost on thin
+// books. Paradex pays a maker rebate (negative). Verified base tiers (2026).
+export const VENUE_MAKER_BPS: Record<string, number> = {
+  hyperliquid: 1.5,
+  dydx: 1,
+  okx: 2,
+  paradex: -0.5, // rebate
+  spot: Number(process.env.FUNDING_SPOT_MAKER_BPS ?? 1),
+};
+
+// Maker fills aren't free even at small size: you wait to fill, get picked off
+// by informed flow (adverse selection), and on a delta-neutral pair you carry
+// leg risk while one side fills. This haircut (bps per maker leg) keeps the
+// maker model honest instead of a rebate fantasy.
+export const ADVERSE_SELECTION_BPS = Number(
+  process.env.FUNDING_ADVERSE_BPS ?? 3,
+);
+
+// Execution model for fill costs:
+//   taker  — cross the book: measured impact-from-mid + taker fee (pessimal)
+//   maker  — rest limit orders: maker fee + adverse-selection haircut, no
+//            depth crossing (optimistic — assumes you always get filled)
+//   blend  — mean of the two: models maker-entry / taker-exit, partial fills,
+//            and leg risk. The honest default.
+export type ExecStyle = "taker" | "maker" | "blend";
+export const FUNDING_EXEC_STYLE = (process.env.FUNDING_EXEC_STYLE ??
+  "blend") as ExecStyle;
+
+// Synthetic cash-and-carry hedge leg name (0% funding spot).
+export const SPOT_VENUE_NAME = "spot";
+
 // Assumed hold horizon used to amortize the one-time round-trip fee into an
 // annualized drag. Short holds can't out-earn the fee — that's the whole
 // point of measuring net, not gross.

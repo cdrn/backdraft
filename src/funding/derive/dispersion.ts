@@ -1,6 +1,7 @@
-import { ASSUMED_HOLD_DAYS, FUNDING_PAPER_NOTIONAL, VENUE_TAKER_BPS } from "../config.js";
+import { ASSUMED_HOLD_DAYS, FUNDING_PAPER_NOTIONAL, SPOT_VENUE_NAME } from "../config.js";
 import type { FundingSnapshot } from "../types.js";
-import { impactAt, type BookImpact } from "./impact.js";
+import type { BookImpact } from "./impact.js";
+import { legCost } from "./exec.js";
 
 // Two delta-neutral carry trades per symbol:
 //
@@ -20,39 +21,25 @@ import { impactAt, type BookImpact } from "./impact.js";
 // both and pick the better; the flattened fields mirror the winner so every
 // downstream consumer (ledger, board, charts) uses the best trade.
 
-export const SPOT = "spot";
+export const SPOT = SPOT_VENUE_NAME;
 
-const taker = (v: string) => VENUE_TAKER_BPS[v] ?? 5;
-
-// Fill cost (bps) for one leg at the reference size, from measured book depth
-// where we have it (impact-from-mid + taker), else flat taker. Spot has no
-// book modeled → flat spot taker.
-function legBps(
-  imp: Map<string, BookImpact>,
-  venue: string,
-  symbol: string,
-  side: "buy" | "sell",
-): number {
-  const t = taker(venue);
-  if (venue === SPOT) return t;
-  const x = impactAt(imp.get(`${venue}|${symbol}`), side, FUNDING_PAPER_NOTIONAL);
-  return x == null ? t : x + t;
-}
-
-// Round-trip fill (entry + exit, both legs) annualized over the assumed hold.
-// Uses measured depth at the reference size so the board reflects real
-// execution cost, not a flat guess — matching the paper ledger.
+// Round-trip fill (entry + exit, both legs) annualized over the assumed hold,
+// via the shared execution-cost model (taker/maker/blend) at the reference
+// size — so the board reflects the same fill assumption as the paper ledger.
 function feeAnnPct(
   symbol: string,
   shortVenue: string,
   longVenue: string,
   imp: Map<string, BookImpact>,
 ): number {
+  const N = FUNDING_PAPER_NOTIONAL;
+  const leg = (v: string, side: "buy" | "sell") =>
+    legCost(imp.get(`${v}|${symbol}`), v, side, N).bps;
   const roundTripBps =
-    legBps(imp, shortVenue, symbol, "sell") + // enter short
-    legBps(imp, longVenue, symbol, "buy") + // enter long
-    legBps(imp, shortVenue, symbol, "buy") + // exit short
-    legBps(imp, longVenue, symbol, "sell"); // exit long
+    leg(shortVenue, "sell") + // enter short
+    leg(longVenue, "buy") + // enter long
+    leg(shortVenue, "buy") + // exit short
+    leg(longVenue, "sell"); // exit long
   return (roundTripBps / 100) * (365 / ASSUMED_HOLD_DAYS);
 }
 
