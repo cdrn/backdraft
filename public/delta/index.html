@@ -3,844 +3,346 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DELTAHOUND — Venue Basis Observatory</title>
+<title>Delta · stablecoin cross-chain basis</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --paper: #f3ecdc;
-    --paper-dark: #e9e0cb;
-    --grid-major: rgba(166, 88, 60, 0.28);
-    --grid-minor: rgba(166, 88, 60, 0.12);
-    --ink: #1a1610;
-    --ink-soft: #4a4338;
-    --red: #b3361e;
-    --green: #205c3b;
-    --brass: #8a6d3b;
-    --trace-eth: #1a1610;
-    --trace-base: #15457a;
-    --trace-arb: #205c3b;
-    --trace-sol: #6b3d8f;
+    --bg:#0b0d11; --panel:#13161c; --panel-2:#161a21; --edge:#232830; --edge-2:#1b2027;
+    --txt:#e7ebf0; --dim:#8b97a4; --faint:#586470;
+    --green:#2ecc8f; --red:#ef6060; --accent:#2ecc8f;
+    --eth:#8b8ff0; --base:#4d8df6; --arb:#46c7e0; --sol:#c77ee0;
   }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { -webkit-font-smoothing:antialiased; }
+  body { background:var(--bg); color:var(--txt); font-family:"JetBrains Mono",monospace; font-size:13px; line-height:1.5; min-height:100vh; }
+  .wrap { max-width:1080px; margin:0 auto; padding:34px 26px 80px; }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  header { display:flex; align-items:center; justify-content:space-between; gap:20px; padding-bottom:18px; margin-bottom:8px; border-bottom:1px solid var(--edge); }
+  .brand { display:flex; align-items:baseline; gap:13px; }
+  .brand h1 { font-family:"Archivo",sans-serif; font-weight:800; font-size:22px; letter-spacing:-0.02em; }
+  .brand .tag { font-family:"Archivo",sans-serif; font-size:11px; color:var(--faint); }
+  .status { display:flex; gap:15px; align-items:center; font-size:11px; color:var(--dim); }
+  .dot { display:inline-flex; align-items:center; gap:7px; color:var(--green); }
+  .dot::before { content:""; width:6px; height:6px; border-radius:50%; background:var(--green); }
+  .explainer { font-size:12px; color:var(--dim); margin:14px 2px 22px; line-height:1.65; }
+  .explainer b { color:var(--txt); }
 
-  body {
-    background: var(--paper);
-    color: var(--ink);
-    font-family: "IBM Plex Mono", monospace;
-    font-size: 13px;
-    min-height: 100vh;
-    position: relative;
-  }
+  .panel { background:var(--panel); border:1px solid var(--edge); border-radius:10px; }
+  .pad { padding:18px 20px; }
+  h2 { font-family:"Archivo",sans-serif; font-weight:600; font-size:14px; }
+  .sub { font-size:10px; text-transform:uppercase; letter-spacing:0.13em; color:var(--faint); margin-top:3px; }
+  .lbl { font-family:"Archivo",sans-serif; font-size:9.5px; text-transform:uppercase; letter-spacing:0.15em; color:var(--faint); }
+  .rise { opacity:0; transform:translateY(8px); animation:rise .5s ease forwards; }
+  @keyframes rise { to { opacity:1; transform:none; } }
 
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 10;
-  }
+  /* HERO — the answer, in plain English */
+  .hero { display:grid; grid-template-columns:1.3fr 1fr; gap:0; overflow:hidden; margin-bottom:14px; }
+  .hero .left { padding:20px 22px; }
+  .hero .right { padding:20px 22px; border-left:1px solid var(--edge); display:flex; flex-direction:column; justify-content:center; }
+  .hero .action { font-family:"Archivo",sans-serif; font-size:24px; font-weight:700; line-height:1.25; margin-top:8px; letter-spacing:-0.01em; }
+  .hero .action .buy { color:var(--green); } .hero .action .sell { color:var(--accent); }
+  .hero .action .ch { white-space:nowrap; }
+  .hero .via { font-size:11px; color:var(--dim); margin-top:10px; }
+  .hero .bignum { font-family:"JetBrains Mono",monospace; font-weight:800; font-size:46px; line-height:1; letter-spacing:-0.03em; }
+  .hero .bignum.pos { color:var(--green); } .hero .bignum.neg { color:var(--red); }
+  .hero .perk { font-size:12px; color:var(--dim); margin-top:8px; }
+  .hero .perk b { color:var(--txt); }
+  .hero .spark { margin-top:14px; }
 
-  .station { max-width: 1180px; margin: 0 auto; padding: 36px 28px 80px; }
+  .controls { display:flex; gap:18px; align-items:center; margin:0 2px 16px; flex-wrap:wrap; }
+  .controls .lbl { margin-right:-8px; }
+  .seg { display:flex; border:1px solid var(--edge); border-radius:7px; overflow:hidden; }
+  .seg button { font-family:"JetBrains Mono",monospace; font-size:11px; padding:5px 13px; border:none; background:transparent; color:var(--dim); cursor:pointer; border-right:1px solid var(--edge); transition:.12s; }
+  .seg button:last-child { border-right:none; }
+  .seg button:hover { color:var(--txt); }
+  .seg button.on { background:var(--accent); color:#06231a; font-weight:600; }
 
-  header {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    border-top: 3px double var(--ink);
-    border-bottom: 1px solid var(--ink);
-    padding: 14px 4px 12px;
-    margin-bottom: 8px;
-  }
-  h1 {
-    font-family: "Instrument Serif", serif;
-    font-weight: 400;
-    font-size: 42px;
-    letter-spacing: 0.01em;
-  }
-  h1 .hound { font-style: italic; }
-  .plate {
-    text-align: right;
-    font-size: 11px;
-    color: var(--ink-soft);
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    line-height: 1.7;
-  }
-  .plate .live { color: var(--red); }
-  .plate .live::before {
-    content: "●";
-    margin-right: 6px;
-    animation: blink 2.4s steps(1) infinite;
-  }
-  @keyframes blink { 50% { opacity: 0.15; } }
-  .plate .armed { color: var(--green); }
+  /* MATRIX */
+  .matrix-wrap { margin-bottom:14px; }
+  table.mtx { width:100%; border-collapse:collapse; table-layout:fixed; }
+  table.mtx th, table.mtx td { padding:12px 8px; text-align:center; font-variant-numeric:tabular-nums; border:1px solid var(--edge-2); }
+  table.mtx th { font-family:"Archivo",sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:var(--dim); font-weight:600; }
+  table.mtx th.corner { font-size:9px; color:var(--faint); text-transform:none; letter-spacing:0; font-weight:400; text-align:left; }
+  table.mtx td .bps { font-size:14px; font-weight:700; }
+  table.mtx td .usd { display:block; font-size:9px; color:var(--faint); margin-top:2px; font-weight:400; }
+  table.mtx td.self { background:#0e1116; color:var(--faint); }
+  table.mtx td.na { color:var(--faint); }
+  /* heat */
+  td.h0{color:var(--faint)} td.h1{color:#9fdcc0} td.h2{color:#5fd6a6;font-weight:700} td.h3{color:var(--green);font-weight:700;background:rgba(46,204,143,0.10)} td.hn{color:#a05a5a}
 
-  .subtitle {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.22em;
-    color: var(--ink-soft);
-    padding: 6px 4px 22px;
-  }
+  /* tables */
+  table.lst { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  table.lst th { font-family:"Archivo",sans-serif; font-size:9.5px; text-transform:uppercase; letter-spacing:0.13em; color:var(--faint); text-align:right; padding:10px 13px; border-bottom:1px solid var(--edge); font-weight:600; }
+  table.lst th:first-child, table.lst td:first-child { text-align:left; }
+  table.lst td { padding:10px 13px; text-align:right; border-bottom:1px solid var(--edge-2); font-size:12px; }
+  table.lst tbody tr:last-child td { border-bottom:none; }
+  table.lst tbody tr:hover { background:var(--panel-2); }
+  td.pos{color:var(--green)} td.neg{color:var(--red)} td.dim{color:var(--faint)}
+  .big{font-size:14px;font-weight:700}
+  .live-pill { font-family:"Archivo",sans-serif; font-size:8.5px; padding:2px 7px; border-radius:5px; background:rgba(46,204,143,0.15); color:var(--green); text-transform:uppercase; letter-spacing:0.06em; margin-left:6px; }
 
-  .controls {
-    display: flex;
-    gap: 28px;
-    flex-wrap: wrap;
-    padding: 10px 4px 26px;
-    align-items: center;
-  }
-  .control { display: flex; align-items: center; gap: 10px; }
-  .control label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.18em;
-    color: var(--brass);
-  }
-  .seg { display: flex; border: 1px solid var(--ink); background: var(--paper-dark); }
-  .seg button {
-    font-family: inherit;
-    font-size: 11px;
-    padding: 5px 12px;
-    border: none;
-    background: transparent;
-    color: var(--ink-soft);
-    cursor: pointer;
-    border-right: 1px solid rgba(26, 22, 16, 0.25);
-    transition: background 0.12s, color 0.12s;
-  }
-  .seg button:last-child { border-right: none; }
-  .seg button:hover { color: var(--ink); }
-  .seg button.on { background: var(--ink); color: var(--paper); }
+  .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--edge); border:1px solid var(--edge); border-radius:10px; overflow:hidden; margin-bottom:14px; }
+  .kpi { background:var(--panel); padding:14px 16px; }
+  .kpi .v { font-family:"JetBrains Mono",monospace; font-weight:700; font-size:23px; margin-top:5px; letter-spacing:-0.02em; }
+  .kpi .v.pos { color:var(--green); } .kpi .v.neg { color:var(--red); }
+  .kpi .d { font-size:10px; color:var(--dim); margin-top:3px; }
 
-  h2 {
-    font-family: "Instrument Serif", serif;
-    font-weight: 400;
-    font-size: 24px;
-    font-style: italic;
-    margin-bottom: 12px;
-  }
-  section { margin-bottom: 44px; }
-  .note {
-    margin-top: 8px;
-    font-size: 10px;
-    color: var(--ink-soft);
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-  }
+  canvas { display:block; width:100%; cursor:crosshair; }
+  .chart-wrap { padding:8px 6px 4px; }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:11px; align-items:center; }
+  .legend .it { display:inline-flex; align-items:center; gap:6px; color:var(--dim); }
+  .legend .sw { width:14px; height:3px; border-radius:2px; }
+  .legend .v { color:var(--txt); font-weight:600; }
+  #tooltip { position:fixed; z-index:50; pointer-events:none; background:#0f141a; border:1px solid var(--edge); border-radius:8px; padding:8px 10px; font-size:11px; display:none; box-shadow:0 10px 30px -10px #000; min-width:150px; }
+  #tooltip .tt-t { color:var(--faint); font-size:9px; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:5px; }
+  #tooltip .tt-r { display:flex; justify-content:space-between; gap:14px; line-height:1.7; }
+  #tooltip .tt-r .nm { display:inline-flex; align-items:center; gap:6px; color:var(--dim); }
+  #tooltip .tt-r .nm i { width:9px; height:3px; border-radius:2px; display:inline-block; }
+  #tooltip .tt-r .vv { color:var(--txt); font-weight:600; }
 
-  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-  th {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.16em;
-    color: var(--brass);
-    text-align: right;
-    padding: 6px 10px;
-    border-bottom: 1px solid var(--ink);
-    font-weight: 500;
-  }
-  th:first-child, td:first-child { text-align: left; }
-  td {
-    padding: 7px 10px;
-    text-align: right;
-    border-bottom: 1px dotted rgba(26, 22, 16, 0.25);
-    font-size: 12px;
-  }
-  td.hot { color: var(--red); font-weight: 600; }
-  td.good { color: var(--green); font-weight: 600; }
-
-  /* board matrix */
-  .board table { table-layout: fixed; }
-  .board td, .board th { text-align: center; }
-  .board th:first-child, .board td:first-child {
-    text-align: left;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-  }
-  .board td.self { background: var(--paper-dark); color: rgba(74, 67, 56, 0.35); }
-  .board td .usd { display: block; font-size: 10px; color: var(--ink-soft); font-weight: 400; }
-  .board td.pos { font-weight: 600; color: var(--green); }
-  .board td.hot { color: var(--red); font-weight: 600; }
-  .board td.neg { color: rgba(74, 67, 56, 0.55); }
-
-  /* drums */
-  .drum {
-    margin-bottom: 26px;
-    border: 1px solid var(--ink);
-    background: var(--paper);
-    box-shadow: 3px 3px 0 rgba(26, 22, 16, 0.12);
-  }
-  .drum-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    padding: 8px 14px;
-    border-bottom: 1px solid var(--ink);
-    background: var(--paper-dark);
-    flex-wrap: wrap;
-    gap: 4px 16px;
-  }
-  .drum-title {
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.24em;
-  }
-  .drum-title .swatch {
-    display: inline-block;
-    width: 22px;
-    height: 3px;
-    margin-right: 10px;
-    vertical-align: middle;
-  }
-  .drum-read { font-size: 12px; font-variant-numeric: tabular-nums; }
-  .drum-read .bps { font-weight: 600; }
-  .drum-read .bps.hot { color: var(--red); }
-  .drum-read .venue {
-    color: var(--ink-soft);
-    font-size: 10px;
-    margin-left: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-  }
-  canvas { display: block; width: 100%; height: 120px; }
-  .drum-main canvas, .drum-spread canvas { height: 220px; }
-
-  .legend { display: flex; gap: 18px; font-size: 11px; font-variant-numeric: tabular-nums; flex-wrap: wrap; }
-  .legend .key {
-    display: inline-block;
-    width: 16px;
-    height: 3px;
-    margin-right: 6px;
-    vertical-align: middle;
-  }
-  .legend .val { font-weight: 600; }
-  .legend .val.hot { color: var(--red); }
-  .legend .val.good { color: var(--green); }
-
-  .chain-bar { display: flex; align-items: center; gap: 14px; padding: 4px 4px 14px; }
-  .chain-bar label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.18em;
-    color: var(--brass);
-  }
-  .chain-bar .seg button .key {
-    display: inline-block;
-    width: 12px;
-    height: 3px;
-    margin-right: 7px;
-    vertical-align: middle;
-  }
-
-  td.open-ep { color: var(--red); font-weight: 600; }
-
-  /* paper ledger headline stats */
-  .paper-stats {
-    display: flex;
-    gap: 0;
-    flex-wrap: wrap;
-    border: 1px solid var(--ink);
-    margin-bottom: 14px;
-    background: var(--paper);
-    box-shadow: 3px 3px 0 rgba(26, 22, 16, 0.12);
-  }
-  .paper-stats .stat {
-    flex: 1;
-    min-width: 130px;
-    padding: 12px 16px;
-    border-right: 1px solid rgba(26, 22, 16, 0.25);
-  }
-  .paper-stats .stat:last-child { border-right: none; }
-  .paper-stats .stat .label {
-    font-size: 9px;
-    text-transform: uppercase;
-    letter-spacing: 0.16em;
-    color: var(--brass);
-    margin-bottom: 5px;
-  }
-  .paper-stats .stat .figure {
-    font-family: "Instrument Serif", serif;
-    font-size: 28px;
-    font-variant-numeric: tabular-nums;
-  }
-  .paper-stats .stat .figure.good { color: var(--green); }
-  .paper-stats .stat .figure.bad { color: var(--red); }
-
-  .divider {
-    border-top: 3px double var(--ink);
-    margin: 50px 0 30px;
-    padding-top: 16px;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.22em;
-    color: var(--ink-soft);
-  }
-
-  footer {
-    margin-top: 56px;
-    padding-top: 12px;
-    border-top: 3px double var(--ink);
-    font-size: 10px;
-    color: var(--ink-soft);
-    text-transform: uppercase;
-    letter-spacing: 0.16em;
-    display: flex;
-    justify-content: space-between;
-  }
+  .sec { font-family:"Archivo",sans-serif; font-weight:600; font-size:14px; letter-spacing:0.04em; padding:6px 2px 10px; display:flex; align-items:baseline; gap:10px; }
+  .sec .sub2 { font-size:10px; text-transform:uppercase; letter-spacing:0.13em; color:var(--faint); font-weight:400; }
+  .note { font-size:10px; color:var(--faint); padding:11px 20px 15px; line-height:1.6; }
+  footer { margin-top:30px; padding-top:14px; border-top:1px solid var(--edge); display:flex; justify-content:space-between; font-size:10px; color:var(--faint); }
+  @media (max-width:820px){ .hero{grid-template-columns:1fr} .hero .right{border-left:none;border-top:1px solid var(--edge)} .kpis{grid-template-columns:1fr 1fr} }
 </style>
 </head>
 <body>
-<div class="station">
-  <header>
-    <h1>DELTA<span class="hound">HOUND</span></h1>
-    <div class="plate">
-      <div>Stablecoin Venue-Basis Seismograph · Backdraft Delta</div>
-      <div>CMP: USDC/USDT &nbsp;·&nbsp; <span id="tg-status">TG: —</span></div>
-      <div class="live" id="live-label">RECORDING</div>
-    </div>
+<div class="wrap">
+  <header class="rise">
+    <div class="brand"><h1>DELTA</h1><span class="tag">stablecoin cross-chain basis</span></div>
+    <div class="status"><span id="venues">ETH · Base · Arbitrum · Solana</span><span id="poll">—</span><span class="dot" id="live">live</span></div>
   </header>
-  <div class="subtitle">Every figure is one closed round trip: USDC out per USDC in, after costs · the delta is the squeeze</div>
+  <div class="explainer rise" style="animation-delay:.03s">
+    Same dollar-stablecoin (USDC, USDT…) trades at slightly different prices on different chains. This watches all of them and finds the <b>round trip that pays</b>: buy the cheap one on chain A, move it, sell it rich on chain B, bring the dollars home. Every number is <b>net of the bridge/rebalance cost</b> — what you'd actually keep. <b>bps</b> = hundredths of a percent; <b>$/trip</b> is the profit on one round trip at the selected size.
+  </div>
 
-  <div class="controls">
-    <div class="control">
-      <label>Size</label>
-      <div class="seg" id="seg-size">
-        <button data-v="1000">$1k</button>
-        <button data-v="10000">$10k</button>
-        <button data-v="100000" class="on">$100k</button>
-        <button data-v="1000000">$1M</button>
-      </div>
+  <!-- HERO: the single best opportunity, in plain English -->
+  <div class="panel hero rise" style="animation-delay:.06s">
+    <div class="left">
+      <div class="lbl">best round trip right now</div>
+      <div class="action" id="hero-action">—</div>
+      <div class="via" id="hero-via"></div>
+      <div class="spark"><canvas id="cv-spark" height="46"></canvas></div>
     </div>
-    <div class="control">
-      <label>Window</label>
-      <div class="seg" id="seg-window">
-        <button data-v="60" class="on">1h</button>
-        <button data-v="360">6h</button>
-        <button data-v="1440">24h</button>
-      </div>
+    <div class="right">
+      <div class="lbl">net edge</div>
+      <div class="bignum" id="hero-bps">—</div>
+      <div class="perk" id="hero-usd"></div>
     </div>
   </div>
 
-  <!-- 0. the money-truth panel -->
-  <section>
-    <h2>Paper ledger — does the edge survive latency?</h2>
-    <div id="paper-stats" class="paper-stats"></div>
-    <table id="paper-table">
-      <thead>
-        <tr>
-          <th>Route</th><th>Size</th><th>Expected net</th>
-          <th>Realized net</th><th>Latency tax</th><th>Realized $</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-    <div class="note">when a route clears the alert threshold, we record the spread at quote time, then re-price one tick later — realized is what you'd net acting on a stale quote. <b>Inventory mode</b> (capital pre-staged both sides); does NOT model your own market impact or non-atomic cross-chain fills, so treat as a ceiling, not a promise.</div>
-  </section>
-
-  <!-- 1. where is the money right now -->
-  <section class="board">
-    <h2 id="board-title">Dislocation board — net round trip</h2>
-    <table id="board-table"><thead></thead><tbody></tbody></table>
-    <div class="note">a cell is a closed round trip: start with USDC on the row chain → buy the quote token → bridge → sell for USDC on the column chain → bridge USDC home. Value shown is net of the rebalance cost model (cctp-fast / usdt0 / oft / cex). Best pair per route; hover for pair, gross, cost, transfer time. Cells only appear at a size the pool can actually fill (≤75 bps impact).</div>
-  </section>
-
-  <!-- 2. where has the money been: deploy-inventory decision -->
-  <section>
-    <h2>Route intelligence — last 7 days</h2>
-    <table id="routes-table">
-      <thead>
-        <tr>
-          <th>Route</th><th>Net now</th><th>Episodes</th>
-          <th>Median duration</th><th>Max peak</th><th>Σ opportunity</th><th>Last event</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-    <div class="note">ranked by total $ opportunity · median duration is the edge filter: seconds belong to bots, minutes are yours · park inventory on routes that recur</div>
-  </section>
-
-  <!-- 3. spread history for the top routes -->
-  <section>
-    <div class="drum drum-spread">
-      <div class="drum-head">
-        <span class="drum-title">Net edge — top routes</span>
-        <span class="legend" id="spread-legend"></span>
-      </div>
-      <canvas id="cv-spread" height="220"></canvas>
-    </div>
-    <div class="note">net round-trip edge over time at selected size · above the line is money · red ticks mark alert threshold</div>
-  </section>
-
-  <!-- 4. event history -->
-  <section>
-    <h2>Event catalog</h2>
-    <table id="catalog-table">
-      <thead>
-        <tr>
-          <th>Route</th><th>Opened</th><th>Duration</th>
-          <th>Peak net</th><th>At size</th><th>Est $/trip</th><th>Status</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-    <div class="note">episode opens at net ≥ 3 bps, closes under 1 bps · telegram fires on open/close · `npm run delta:backfill` replays history after cost-model changes</div>
-  </section>
-
-  <!-- issuer basis: same-chain, two issuers -->
-  <div class="divider">Issuer basis — same chain, one issuer vs another (diagnostic, not the arb)</div>
-
-  <div class="controls">
-    <div class="control">
-      <label>Direction</label>
-      <div class="seg" id="seg-dir">
-        <button data-v="USDC" class="on">USDC&#8594;USDT</button>
-        <button data-v="USDT">USDT&#8594;USDC</button>
-      </div>
+  <div class="controls rise" style="animation-delay:.09s">
+    <span class="lbl">trade size</span>
+    <div class="seg" id="seg-size">
+      <button data-v="1000">$1k</button><button data-v="10000">$10k</button>
+      <button data-v="100000" class="on">$100k</button><button data-v="1000000">$1M</button>
     </div>
   </div>
 
-  <div class="drum drum-main">
-    <div class="drum-head">
-      <span class="drum-title">All chains — overlay</span>
-      <span class="legend" id="legend"></span>
-    </div>
-    <canvas id="cv-all" height="220"></canvas>
+  <!-- MATRIX: buy chain × sell chain -->
+  <div class="sec rise" style="animation-delay:.11s">Where the money is <span class="sub2">net bps per round trip · buy down the side, sell across the top</span></div>
+  <div class="panel pad matrix-wrap rise" style="animation-delay:.11s">
+    <table class="mtx" id="matrix"><thead></thead><tbody></tbody></table>
   </div>
 
-  <div class="chain-bar">
-    <label>Chain</label>
-    <div class="seg" id="seg-chain"></div>
-  </div>
-  <div class="drum">
-    <div class="drum-head">
-      <span class="drum-title" id="chain-title"></span>
-      <span class="drum-read"><span class="bps" id="chain-read">—</span> bps<span class="venue" id="chain-venue"></span></span>
-    </div>
-    <canvas id="cv-chain" height="120"></canvas>
+  <!-- top routes -->
+  <div class="sec rise" style="animation-delay:.14s">Top routes <span class="sub2">ranked by current net · last 7 days of history</span></div>
+  <div class="panel rise" style="animation-delay:.14s; margin-bottom:14px;">
+    <table class="lst" id="routes"><thead><tr>
+      <th>Route</th><th>Net now</th><th>Events (7d)</th><th>Median dur.</th><th>Max peak</th><th>Σ opportunity</th>
+    </tr></thead><tbody></tbody></table>
+    <div class="note">a route only matters if it <b>recurs</b> and lasts long enough to act on — median duration in <b>minutes</b> is yours to capture; <b>seconds</b> belong to bots.</div>
   </div>
 
-  <section>
-    <h2>Chain log — latest readings</h2>
-    <table id="log-table">
-      <thead>
-        <tr>
-          <th>Chain</th><th>Venue</th><th>Direction</th>
-          <th>$1k</th><th>$10k</th><th>$100k</th><th>$1M</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </section>
+  <!-- net edge over time -->
+  <div class="sec rise" style="animation-delay:.17s">Net edge over time <span class="sub2">top routes · above zero = money · hover to read</span></div>
+  <div class="panel rise" style="animation-delay:.17s; margin-bottom:14px;">
+    <div class="pad" style="padding-bottom:0;"><span class="legend" id="chart-legend"></span></div>
+    <div class="chart-wrap"><canvas id="cv-net" height="240"></canvas></div>
+  </div>
 
-  <footer>
-    <span>backdraft delta — venue drift instrument</span>
-    <span id="updated"></span>
-  </footer>
+  <!-- paper ledger: the honest test -->
+  <div class="sec rise" style="animation-delay:.2s">Does the edge survive? <span class="sub2">paper ledger — quote vs what you'd actually capture a tick later</span></div>
+  <div class="kpis rise" id="kpis" style="animation-delay:.2s"></div>
+  <div class="panel rise" style="animation-delay:.2s">
+    <div class="note" id="paper-note"></div>
+  </div>
+
+  <footer><span>backdraft · delta — venue-basis instrument</span><span id="updated"></span></footer>
 </div>
+<div id="tooltip"></div>
 
 <script>
 const CHAINS = [
-  { id: "ethereum", label: "Ethereum", color: getCss("--trace-eth") },
-  { id: "base",     label: "Base",     color: getCss("--trace-base") },
-  { id: "arbitrum", label: "Arbitrum", color: getCss("--trace-arb") },
-  { id: "solana",   label: "Solana",   color: getCss("--trace-sol") },
+  { id:"ethereum", label:"Ethereum", short:"ETH",  color:"#8b8ff0" },
+  { id:"base",     label:"Base",     short:"Base", color:"#4d8df6" },
+  { id:"arbitrum", label:"Arbitrum", short:"Arb",  color:"#46c7e0" },
+  { id:"solana",   label:"Solana",   short:"Sol",  color:"#c77ee0" },
 ];
-const SIZES = [1000, 10000, 100000, 1000000];
-const HOT_BPS = 5;
+const ROUTE_COLORS = ["#2ecc8f","#4d8df6","#c77ee0","#e0a64b","#46c7e0"];
 const ALERT_BPS = 3;
-const ROUTE_COLORS = ["#b3361e", "#15457a", "#205c3b", "#6b3d8f", "#8a6d3b"];
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const chById = (id) => CHAINS.find((c) => c.id === id) || { label:id, short:id, color:"#888" };
+const fmtBps = (b) => (b==null||Number.isNaN(b)) ? "—" : (b>=0?"+":"")+b.toFixed(1);
+const fmtSize = (s) => s>=1e6 ? "$"+s/1e6+"M" : "$"+s/1e3+"k";
+const fmtUsd = (v) => (v==null) ? "—" : (v>=0?"$":"−$")+Math.abs(v).toFixed(v>=100?0:1);
 
-let state = { size: 100000, minutes: 60, dir: "USDC", chain: "ethereum" };
-let lastSeries = null;
+let state = { size:100000 };
+let lastBoard=null;
 
-function getCss(name) {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+// best cell per (from,to) at the selected size
+function bestCells(board, size) {
+  const m = new Map(); // "from|to" -> cell
+  for (const c of board) {
+    if (c.size !== size) continue;
+    const k = c.from+"|"+c.to;
+    const p = m.get(k);
+    if (!p || c.netBps > p.netBps) m.set(k, c);
+  }
+  return m;
 }
-function fmtBps(b) {
-  if (b === null || b === undefined) return "—";
-  return (b >= 0 ? "+" : "") + b.toFixed(2);
+
+function renderHero(board) {
+  const m = bestCells(board, state.size);
+  let best=null; for (const c of m.values()) if (!best || c.netBps>best.netBps) best=c;
+  const a=document.getElementById("hero-action"), v=document.getElementById("hero-via"), bps=document.getElementById("hero-bps"), usd=document.getElementById("hero-usd");
+  if (!best) { a.textContent="no positive route right now"; v.textContent=""; bps.textContent="—"; usd.textContent=""; return; }
+  const q = best.pair.split("/")[1]; // the token you buy/move
+  a.innerHTML = `<span class="ch">Buy <span class="buy">${q} on ${chById(best.from).label}</span></span><br>→ <span class="ch">sell on <span class="sell">${chById(best.to).label}</span></span>`;
+  v.innerHTML = `${best.pair} · bridge ~${best.minutes} min via ${best.via}`;
+  bps.textContent = fmtBps(best.netBps); bps.className = "bignum "+(best.netBps>0?"pos":"neg");
+  usd.innerHTML = `<b>${fmtUsd(best.netUsd)}</b> per ${fmtSize(state.size)} round trip · gross ${fmtBps(best.grossBps)} bps, cost ${best.costBps.toFixed(1)} bps`;
 }
-function fmtSize(s) {
-  return s >= 1000000 ? `$${s / 1000000}M` : `$${s / 1000}k`;
+
+function heatClass(bps) {
+  if (bps==null) return "na";
+  if (bps<=0) return "hn";
+  if (bps>=ALERT_BPS*2) return "h3";
+  if (bps>=ALERT_BPS) return "h2";
+  if (bps>0) return "h1";
+  return "h0";
 }
-function chainLabel(id) {
-  return (CHAINS.find((c) => c.id === id) || { label: id }).label;
+function renderMatrix(board) {
+  const m = bestCells(board, state.size);
+  const thead = document.querySelector("#matrix thead");
+  const tbody = document.querySelector("#matrix tbody");
+  thead.innerHTML = `<tr><th class="corner">buy ↓ / sell →</th>${CHAINS.map(c=>`<th style="color:${c.color}">${c.label}</th>`).join("")}</tr>`;
+  tbody.innerHTML = CHAINS.map(row=>{
+    const tds = CHAINS.map(col=>{
+      if (row.id===col.id) return `<td class="self">·</td>`;
+      const c = m.get(row.id+"|"+col.id);
+      if (!c) return `<td class="na">—</td>`;
+      return `<td class="${heatClass(c.netBps)}"><span class="bps">${fmtBps(c.netBps)}</span><span class="usd">${fmtUsd(c.netUsd)}</span></td>`;
+    }).join("");
+    return `<tr><th style="text-align:left;color:${row.color}">${row.label}</th>${tds}</tr>`;
+  }).join("");
 }
-// route format: "USDC/USDT base→solana"
-function prettyRoute(route) {
-  const sp = route.indexOf(" ");
-  const pair = sp > 0 ? route.slice(0, sp) : "";
-  const legs = (sp > 0 ? route.slice(sp + 1) : route)
-    .split("→")
-    .map(chainLabel)
-    .join(" → ");
+
+function prettyRoute(r) { // "ethereum→base" or "USDC/USDT base→ethereum"
+  const sp=r.indexOf(" "); const pair= sp>0?r.slice(0,sp):""; const legs=(sp>0?r.slice(sp+1):r).split("→").map(x=>chById(x).label).join(" → ");
   return pair ? `${legs} · ${pair}` : legs;
 }
-
-// ---- chain tabs ----
-const segChain = document.getElementById("seg-chain");
-for (const c of CHAINS) {
-  const btn = document.createElement("button");
-  btn.dataset.v = c.id;
-  btn.innerHTML = `<span class="key" style="background:${c.color}"></span>${c.label}`;
-  if (c.id === state.chain) btn.classList.add("on");
-  segChain.appendChild(btn);
-}
-
-function wireSeg(id, key, parse, refetch) {
-  document.getElementById(id).addEventListener("click", (e) => {
-    const btn = e.target.closest("button");
-    if (!btn) return;
-    for (const b of btn.parentElement.children) b.classList.remove("on");
-    btn.classList.add("on");
-    state[key] = parse(btn.dataset.v);
-    refetch ? refresh() : redraw();
-  });
-}
-wireSeg("seg-size", "size", Number, true);
-wireSeg("seg-window", "minutes", Number, true);
-wireSeg("seg-dir", "dir", String, true);
-wireSeg("seg-chain", "chain", String, false);
-
-// ---- drawing ----
-// seriesList: [{ points: [{ts, bps}], color }]; shared scale.
-// opts.zeroLabel: label for the center line; opts.profitTint shades above it.
-function drawDrum(canvas, seriesList, minutes, opts = {}) {
-  const zeroLabel = opts.zeroLabel || "par";
-  const dpr = window.devicePixelRatio || 1;
-  const w = canvas.clientWidth, h = canvas.clientHeight;
-  canvas.width = w * dpr;
-  canvas.height = h * dpr;
-  const ctx = canvas.getContext("2d");
-  ctx.scale(dpr, dpr);
-
-  const CLIP = 50;
-  let maxAbs = 6;
-  for (const s of seriesList)
-    for (const p of s.points) maxAbs = Math.max(maxAbs, Math.abs(p.bps));
-  maxAbs = Math.min(Math.ceil(maxAbs * 1.2), CLIP);
-  const yOf = (bps) =>
-    h / 2 - (Math.max(-maxAbs, Math.min(maxAbs, bps)) / maxAbs) * (h / 2 - 8);
-  const clipped = (bps) => Math.abs(bps) > maxAbs;
-
-  if (opts.profitTint) {
-    ctx.fillStyle = "rgba(32, 92, 59, 0.05)";
-    ctx.fillRect(0, 0, w, h / 2);
-  }
-
-  ctx.strokeStyle = getCss("--grid-minor");
-  ctx.lineWidth = 0.5;
-  for (let x = 0; x < w; x += 8) line(ctx, x, 0, x, h);
-  for (let y = 0; y < h; y += 8) line(ctx, 0, y, w, y);
-  ctx.strokeStyle = getCss("--grid-major");
-  for (let x = 0; x < w; x += 80) line(ctx, x, 0, x, h);
-
-  ctx.strokeStyle = "rgba(179, 54, 30, 0.55)";
-  ctx.lineWidth = 1;
-  ctx.setLineDash([1, 3]);
-  line(ctx, 0, h / 2, w, h / 2);
-  ctx.setLineDash([]);
-
-  ctx.fillStyle = "rgba(74, 67, 56, 0.7)";
-  ctx.font = "9px 'IBM Plex Mono', monospace";
-  ctx.fillText(`+${maxAbs}`, 4, 12);
-  ctx.fillText(`−${maxAbs}`, 4, h - 5);
-  ctx.fillText(zeroLabel, 4, h / 2 - 3);
-
-  if (!seriesList.some((s) => s.points.length)) {
-    ctx.fillStyle = "rgba(74, 67, 56, 0.5)";
-    ctx.font = "11px 'IBM Plex Mono', monospace";
-    ctx.fillText("awaiting signal …", w / 2 - 50, h / 2 - 8);
-    return;
-  }
-
-  const now = Date.now();
-  const t0 = now - minutes * 60000;
-  const xOf = (ts) => ((ts - t0) / (now - t0)) * w;
-
-  for (const s of seriesList) {
-    if (!s.points.length) continue;
-
-    ctx.strokeStyle = s.color;
-    ctx.lineWidth = 1.4;
-    ctx.lineJoin = "round";
-    ctx.beginPath();
-    s.points.forEach((p, i) => {
-      const x = xOf(p.ts), y = yOf(p.bps);
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-
-    ctx.strokeStyle = getCss("--red");
-    for (const p of s.points) {
-      const x = xOf(p.ts);
-      if (clipped(p.bps)) {
-        ctx.lineWidth = 2;
-        const yEdge = p.bps > 0 ? 8 : h - 8;
-        line(ctx, x, yEdge - 4, x, yEdge + 4);
-      } else if (Math.abs(p.bps) >= (opts.tickAt ?? HOT_BPS)) {
-        ctx.lineWidth = 1;
-        line(ctx, x, 2, x, 7);
-      }
-    }
-
-    const last = s.points[s.points.length - 1];
-    ctx.fillStyle = s.color;
-    ctx.beginPath();
-    ctx.arc(xOf(last.ts), yOf(last.bps), 2.5, 0, Math.PI * 2);
-    ctx.fill();
-  }
-}
-
-function line(ctx, x1, y1, x2, y2) {
-  ctx.beginPath();
-  ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
-  ctx.stroke();
-}
-
-// ---- operator panels ----
-function renderBoard(cells) {
-  const atSize = cells.filter((c) => c.size === state.size);
-  document.getElementById("board-title").textContent =
-    `Dislocation board — best pair, net round trip at ${fmtSize(state.size)}`;
-  // best pair per route at this size
-  const cell = (from, to) => {
-    const candidates = atSize.filter((c) => c.from === from && c.to === to);
-    if (!candidates.length) return null;
-    return candidates.reduce((a, b) => (b.netBps > a.netBps ? b : a));
-  };
-
-  document.querySelector("#board-table thead").innerHTML =
-    `<tr><th>buy ↓ / sell →</th>` +
-    CHAINS.map((c) => `<th>${c.label}</th>`).join("") +
-    `</tr>`;
-
-  document.querySelector("#board-table tbody").innerHTML = CHAINS.map((row) => {
-    const tds = CHAINS.map((col) => {
-      if (row.id === col.id) return `<td class="self">·</td>`;
-      const c = cell(row.id, col.id);
-      if (!c) return `<td class="neg">no quote</td>`;
-      const cls = c.netBps >= ALERT_BPS ? "hot" : c.netBps > 0 ? "pos" : "neg";
-      const tip =
-        `${c.pair} · gross ${fmtBps(c.grossBps)} bps · cost ${c.costBps.toFixed(2)} bps` +
-        ` · ~${c.minutes} min via ${c.via}`;
-      return `<td class="${cls}" title="${tip}">${fmtBps(c.netBps)}<span class="usd">${c.pair.split("/")[1]} · $${c.netUsd.toFixed(0)}/trip</span></td>`;
-    }).join("");
-    return `<tr><td>${row.label}</td>${tds}</tr>`;
+function renderRoutes(stats) {
+  const rows=[...stats].sort((a,b)=>b.totalOpportunityUsd-a.totalOpportunityUsd).filter(r=>r.episodes>0||r.currentNetBps>0).slice(0,12);
+  const tb=document.querySelector("#routes tbody");
+  if (!rows.length){ tb.innerHTML=`<tr><td colspan="6" class="dim" style="text-align:center;padding:20px">no recurring routes yet</td></tr>`; return; }
+  tb.innerHTML=rows.map(r=>{
+    const dur = r.medianDurationMin==null?"—": r.medianDurationMin>=60?(r.medianDurationMin/60).toFixed(1)+"h":Math.round(r.medianDurationMin)+"m";
+    const nc = r.currentNetBps==null?"dim": r.currentNetBps>=ALERT_BPS?"pos big": r.currentNetBps>0?"pos":"neg";
+    return `<tr>
+      <td>${prettyRoute(r.route)}${r.openNow?'<span class="live-pill">live</span>':""}</td>
+      <td class="${nc}">${fmtBps(r.currentNetBps)} bps</td>
+      <td>${r.episodes}</td><td>${dur}</td>
+      <td>${r.maxPeakBps==null?"—":fmtBps(r.maxPeakBps)+" bps"}</td>
+      <td>$${r.totalOpportunityUsd.toFixed(0)}</td></tr>`;
   }).join("");
 }
 
-function renderRouteStats(stats) {
-  const rows = stats
-    .slice()
-    .sort((a, b) => b.totalOpportunityUsd - a.totalOpportunityUsd);
-  document.querySelector("#routes-table tbody").innerHTML = rows
-    .map((r) => {
-      const netCls =
-        r.currentNetBps === null ? "" : r.currentNetBps >= ALERT_BPS ? "hot" : r.currentNetBps > 0 ? "good" : "";
-      return `<tr>
-        <td>${prettyRoute(r.route)}${r.openNow ? ' <span style="color:var(--red)">●</span>' : ""}</td>
-        <td class="${netCls}">${r.currentNetBps === null ? "—" : fmtBps(r.currentNetBps) + " bps"}</td>
-        <td>${r.episodes}</td>
-        <td>${r.medianDurationMin === null ? "—" : r.medianDurationMin >= 60 ? (r.medianDurationMin / 60).toFixed(1) + " h" : Math.round(r.medianDurationMin) + " min"}</td>
-        <td>${r.maxPeakBps === null ? "—" : fmtBps(r.maxPeakBps) + " bps"}</td>
-        <td>$${r.totalOpportunityUsd.toFixed(2)}</td>
-        <td>${r.lastOpenedTs ? new Date(r.lastOpenedTs).toLocaleString() : "—"}</td>
-      </tr>`;
-    })
-    .join("");
+function renderPaper(p) {
+  const s=p.stats;
+  document.getElementById("kpis").innerHTML=`
+    <div class="kpi"><div class="lbl">survives the lag</div><div class="v ${s.hitRate>0.8?"pos":"neg"}">${(s.hitRate*100).toFixed(0)}%</div><div class="d">${s.settled.toLocaleString()} paper trips</div></div>
+    <div class="kpi"><div class="lbl">net you'd capture</div><div class="v ${s.meanRealizedBps>0?"pos":"neg"}">${fmtBps(s.meanRealizedBps)} bps</div><div class="d">vs ${fmtBps(s.meanExpectedBps)} quoted</div></div>
+    <div class="kpi"><div class="lbl">latency tax</div><div class="v">${fmtBps(s.meanSlippageBps)} bps</div><div class="d">quote → fill slip</div></div>
+    <div class="kpi"><div class="lbl">pending</div><div class="v">${s.pending}</div><div class="d">open paper trips</div></div>`;
+  document.getElementById("paper-note").innerHTML=`When a route clears the threshold we record the spread at quote time, then re-price one tick later — <b>realized</b> is what you'd net acting on a stale quote. <b>Inventory mode</b>: assumes capital pre-staged on both sides (instant capture). Does <b>not</b> model your own market impact or non-atomic cross-chain fills — treat as a ceiling.`;
 }
 
-function renderSpreadDrum(routeSeries) {
-  // top routes by latest net at the selected size
-  const entries = Object.entries(routeSeries)
-    .map(([route, pts]) => ({ route, pts, last: pts.length ? pts[pts.length - 1].netBps : -Infinity }))
-    .sort((a, b) => b.last - a.last)
-    .slice(0, 4);
-
-  drawDrum(
-    document.getElementById("cv-spread"),
-    entries.map((e, i) => ({
-      points: e.pts.map((p) => ({ ts: p.ts, bps: p.netBps })),
-      color: ROUTE_COLORS[i % ROUTE_COLORS.length],
-    })),
-    state.minutes,
-    { zeroLabel: "even", profitTint: true, tickAt: ALERT_BPS },
-  );
-
-  document.getElementById("spread-legend").innerHTML = entries
-    .map((e, i) => {
-      const cls = e.last >= ALERT_BPS ? "hot" : e.last > 0 ? "good" : "";
-      return `<span><span class="key" style="background:${ROUTE_COLORS[i % ROUTE_COLORS.length]}"></span>${prettyRoute(e.route)} <span class="val ${cls}">${fmtBps(e.last)}</span></span>`;
-    })
-    .join("");
+// ---- chart (reused clean engine w/ hover) ----
+let netSeries=null, netGeom=null;
+function lineChart(canvas, series, opts={}) {
+  const dpr=window.devicePixelRatio||1, w=canvas.clientWidth, h=canvas.clientHeight;
+  canvas.width=w*dpr; canvas.height=h*dpr; const ctx=canvas.getContext("2d"); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h);
+  const padL=44,padR=12,padT=12,padB=20, x0=padL,x1=w-padR,y0=padT,y1=h-padB;
+  const all=series.flatMap(s=>s.points.map(p=>p.v)); all.push(0);
+  let lo=Math.min(...all),hi=Math.max(...all,ALERT_BPS); if(!isFinite(lo))lo=0; if(!isFinite(hi))hi=1;
+  const pv=(hi-lo)*0.15||1; lo-=pv; hi+=pv;
+  const mins=opts.minutes||360, now=Date.now(), t0=now-mins*60000;
+  const X=t=>x0+((t-t0)/(now-t0))*(x1-x0), Y=v=>y1-((v-lo)/(hi-lo))*(y1-y0);
+  if(lo<0&&hi>0){ctx.fillStyle="rgba(46,204,143,0.05)";ctx.fillRect(x0,y0,x1-x0,Y(0)-y0);}
+  ctx.font="9px 'JetBrains Mono'"; ctx.textBaseline="middle";
+  for(let i=0;i<=4;i++){const v=lo+(hi-lo)*i/4,y=Y(v);ctx.strokeStyle=css("--edge-2");ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x0,y);ctx.lineTo(x1,y);ctx.stroke();ctx.fillStyle=css("--faint");ctx.textAlign="right";ctx.fillText((v>=0?"+":"")+v.toFixed(0),x0-7,y);}
+  // zero line
+  if(lo<0&&hi>0){const y=Y(0);ctx.strokeStyle=css("--edge");ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(x0,y);ctx.lineTo(x1,y);ctx.stroke();ctx.setLineDash([]);}
+  if(!series.some(s=>s.points.length)){ctx.fillStyle=css("--faint");ctx.textAlign="center";ctx.fillText("collecting…",(x0+x1)/2,(y0+y1)/2);return null;}
+  for(const s of series){if(!s.points.length)continue;ctx.strokeStyle=s.color;ctx.lineWidth=1.8;ctx.lineJoin="round";ctx.beginPath();s.points.forEach((p,i)=>{const x=X(p.t),y=Y(p.v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();const last=s.points.at(-1);ctx.fillStyle=s.color;ctx.beginPath();ctx.arc(X(last.t),Y(last.v),2.4,0,7);ctx.fill();}
+  if(opts.hoverPx!=null&&opts.hoverPx>=x0&&opts.hoverPx<=x1){ctx.strokeStyle="rgba(231,235,240,0.25)";ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(opts.hoverPx,y0);ctx.lineTo(opts.hoverPx,y1);ctx.stroke();ctx.setLineDash([]);}
+  return {x0,x1,y0,y1,t0,now};
+}
+function sparkline(canvas, pts, color){
+  const dpr=window.devicePixelRatio||1,w=canvas.clientWidth,h=canvas.clientHeight;
+  canvas.width=w*dpr;canvas.height=h*dpr;const ctx=canvas.getContext("2d");ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);
+  if(pts.length<2)return;const vs=pts.map(p=>p.v);let lo=Math.min(...vs),hi=Math.max(...vs);if(hi===lo){hi+=1;lo-=1;}
+  const X=i=>(i/(pts.length-1))*w,Y=v=>h-2-((v-lo)/(hi-lo))*(h-4);
+  ctx.beginPath();pts.forEach((p,i)=>{const x=X(i),y=Y(p.v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.closePath();
+  const g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,color+"33");g.addColorStop(1,color+"00");ctx.fillStyle=g;ctx.fill();
+  ctx.strokeStyle=color;ctx.lineWidth=1.6;ctx.lineJoin="round";ctx.beginPath();pts.forEach((p,i)=>{const x=X(i),y=Y(p.v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();
 }
 
-function renderPaper(data) {
-  const s = data.stats;
-  const taxCls = s.meanSlippageBps <= 0 ? "good" : "bad";
-  const realCls = s.meanRealizedBps > 0 ? "good" : "bad";
-  document.getElementById("paper-stats").innerHTML = `
-    <div class="stat"><div class="label">Settled / pending</div><div class="figure">${s.settled} / ${s.pending}</div></div>
-    <div class="stat"><div class="label">Mean expected</div><div class="figure">${fmtBps(s.meanExpectedBps)}</div></div>
-    <div class="stat"><div class="label">Mean realized</div><div class="figure ${realCls}">${fmtBps(s.meanRealizedBps)}</div></div>
-    <div class="stat"><div class="label">Latency tax</div><div class="figure ${taxCls}">${fmtBps(s.meanSlippageBps)}</div></div>
-    <div class="stat"><div class="label">Survives latency</div><div class="figure">${(s.hitRate * 100).toFixed(0)}%</div></div>`;
-
-  const tbody = document.querySelector("#paper-table tbody");
-  if (!data.entries.length) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--ink-soft)">no paper trips yet — waiting for a route to clear threshold</td></tr>`;
-    return;
-  }
-  tbody.innerHTML = data.entries
-    .map((e) => {
-      const tax = e.expectedNetBps - (e.realizedNetBps ?? 0);
-      const rCls = (e.realizedNetBps ?? 0) > 0 ? "good" : "hot";
-      return `<tr>
-        <td>${prettyRoute(e.route)}</td>
-        <td>${fmtSize(e.size)}</td>
-        <td>${fmtBps(e.expectedNetBps)} bps</td>
-        <td class="${rCls}">${fmtBps(e.realizedNetBps)} bps</td>
-        <td>${fmtBps(-tax)} bps</td>
-        <td class="${rCls}">$${(e.realizedUsd ?? 0).toFixed(0)}</td>
-      </tr>`;
-    })
-    .join("");
+function renderNet(routeSeries) {
+  // routeSeries: { "from→to": [{ts,netBps}] } — pick top 4 by latest
+  const entries=Object.entries(routeSeries).map(([r,pts])=>({r,pts:pts.map(p=>({t:p.ts,v:p.netBps})),last:pts.length?pts.at(-1).netBps:-1e9})).sort((a,b)=>b.last-a.last).slice(0,4);
+  netSeries=entries.map((e,i)=>({route:e.r,points:e.pts,color:ROUTE_COLORS[i%ROUTE_COLORS.length]}));
+  drawNet();
+  document.getElementById("chart-legend").innerHTML=entries.map((e,i)=>`<span class="it"><span class="sw" style="background:${ROUTE_COLORS[i%ROUTE_COLORS.length]}"></span>${prettyRoute(e.r)} <span class="v">${fmtBps(e.last)}</span></span>`).join("");
 }
+function drawNet(hoverPx){ if(!netSeries)return; netGeom=lineChart(document.getElementById("cv-net"),netSeries.map(s=>({points:s.points,color:s.color})),{minutes:360,hoverPx}); }
 
-function renderCatalog(episodes) {
-  const tbody = document.querySelector("#catalog-table tbody");
-  if (!episodes.length) {
-    tbody.innerHTML =
-      `<tr><td colspan="7" style="text-align:center;color:var(--ink-soft)">no events recorded — the instrument is listening</td></tr>`;
-    return;
-  }
-  tbody.innerHTML = episodes
-    .map((ep) => {
-      const open = ep.closedTs === null;
-      const dur = ((ep.closedTs ?? ep.lastTs) - ep.openedTs) / 60000;
-      const durStr =
-        dur >= 60 ? `${(dur / 60).toFixed(1)} h` : `${Math.max(1, Math.round(dur))} min`;
-      return `<tr>
-        <td>${prettyRoute(ep.route)}</td>
-        <td>${new Date(ep.openedTs).toLocaleString()}</td>
-        <td>${durStr}</td>
-        <td>${fmtBps(ep.peakBps)} bps</td>
-        <td>${fmtSize(ep.peakSize)}</td>
-        <td>$${ep.peakUsd.toFixed(2)}</td>
-        <td class="${open ? "open-ep" : ""}">${open ? "OPEN" : "closed"}</td>
-      </tr>`;
-    })
-    .join("");
-}
+const cvNet=document.getElementById("cv-net"), tip=document.getElementById("tooltip");
+cvNet.addEventListener("mousemove",(e)=>{ if(!netGeom||!netSeries){return;} const r=cvNet.getBoundingClientRect(),px=e.clientX-r.left;
+  if(px<netGeom.x0||px>netGeom.x1){tip.style.display="none";drawNet();return;} drawNet(px);
+  const t=netGeom.t0+((px-netGeom.x0)/(netGeom.x1-netGeom.x0))*(netGeom.now-netGeom.t0);
+  let rows="",tt=t; for(const s of netSeries){if(!s.points.length)continue;let np=s.points[0];for(const p of s.points)if(Math.abs(p.t-t)<Math.abs(np.t-t))np=p;tt=np.t;rows+=`<div class="tt-r"><span class="nm"><i style="background:${s.color}"></i>${prettyRoute(s.route)}</span><span class="vv">${fmtBps(np.v)} bps</span></div>`;}
+  tip.innerHTML=`<div class="tt-t">${new Date(tt).toLocaleTimeString()}</div>${rows}`;tip.style.display="block";
+  let lx=e.clientX+14,ly=e.clientY+14; if(lx+tip.offsetWidth>innerWidth-8)lx=e.clientX-tip.offsetWidth-14; tip.style.left=lx+"px";tip.style.top=ly+"px";
+});
+cvNet.addEventListener("mouseleave",()=>{tip.style.display="none";drawNet();});
 
-// ---- venue health (par drums) ----
-function redraw() {
-  if (!lastSeries) return;
-  const other = state.dir === "USDC" ? "USDT" : "USDC";
-  const byChain = (id) =>
-    lastSeries.filter(
-      (q) => q.chain === id && q.tokenIn === state.dir && q.tokenOut === other,
-    );
+function redrawAll(){ if(!lastBoard)return; renderHero(lastBoard); renderMatrix(lastBoard); }
 
-  drawDrum(
-    document.getElementById("cv-all"),
-    CHAINS.map((c) => ({ points: byChain(c.id), color: c.color })),
-    state.minutes,
-  );
+async function refresh(){ try{
+  const [board,routes,spread,paper,status]=await Promise.all([
+    fetch("/api/board").then(r=>r.json()),
+    fetch("/api/route-stats?days=7").then(r=>r.json()),
+    fetch(`/api/route-series?minutes=360&size=${state.size}`).then(r=>r.json()),
+    fetch("/api/paper?limit=1").then(r=>r.json()),
+    fetch("/api/status").then(r=>r.json()),
+  ]);
+  lastBoard=board;
+  renderHero(board); renderMatrix(board); renderRoutes(routes); renderNet(spread); renderPaper(paper);
+  // hero sparkline = best route's recent series
+  const m=bestCells(board,state.size); let best=null,bk=null; for(const [k,c] of m) if(!best||c.netBps>best.netBps){best=c;bk=c.from+"→"+c.to;}
+  const ser=spread[bk]; if(ser&&ser.length) sparkline(document.getElementById("cv-spark"),ser.map(p=>({v:p.netBps})),best.netBps>0?css("--green"):css("--red"));
+  document.getElementById("poll").textContent="poll "+Math.round(status.pollIntervalMs/1000)+"s";
+  document.getElementById("updated").textContent="updated "+new Date().toLocaleTimeString();
+}catch(e){ document.getElementById("live").textContent="signal lost"; } }
 
-  document.getElementById("legend").innerHTML = CHAINS.map((c) => {
-    const pts = byChain(c.id);
-    const last = pts[pts.length - 1];
-    const hot = last && Math.abs(last.bps) >= HOT_BPS ? " hot" : "";
-    return `<span><span class="key" style="background:${c.color}"></span>${c.label} <span class="val${hot}">${last ? fmtBps(last.bps) : "—"}</span></span>`;
-  }).join("");
-
-  const chain = CHAINS.find((c) => c.id === state.chain);
-  const pts = byChain(chain.id);
-  document.getElementById("chain-title").innerHTML =
-    `<span class="swatch" style="background:${chain.color}"></span>${chain.label}`;
-  drawDrum(
-    document.getElementById("cv-chain"),
-    [{ points: pts, color: chain.color }],
-    state.minutes,
-  );
-  const last = pts[pts.length - 1];
-  const readEl = document.getElementById("chain-read");
-  readEl.textContent = last ? fmtBps(last.bps) : "—";
-  readEl.classList.toggle("hot", !!last && Math.abs(last.bps) >= HOT_BPS);
-  document.getElementById("chain-venue").textContent = last ? last.venue : "";
-}
-
-// ---- data ----
-async function refresh() {
-  try {
-    const [series, latest, board, episodes, routes, spreadSeries, paper, status] =
-      await Promise.all([
-        fetch(`/api/series?minutes=${state.minutes}&size=${state.size}`).then((r) => r.json()),
-        fetch(`/api/latest`).then((r) => r.json()),
-        fetch(`/api/board`).then((r) => r.json()),
-        fetch(`/api/episodes?limit=50`).then((r) => r.json()),
-        fetch(`/api/route-stats?days=7`).then((r) => r.json()),
-        fetch(`/api/route-series?minutes=${state.minutes}&size=${state.size}`).then((r) => r.json()),
-        fetch(`/api/paper?limit=50`).then((r) => r.json()),
-        fetch(`/api/status`).then((r) => r.json()),
-      ]);
-    lastSeries = series;
-    renderPaper(paper);
-    renderBoard(board);
-    renderRouteStats(routes);
-    renderSpreadDrum(spreadSeries);
-    renderCatalog(episodes);
-    redraw();
-
-    const tg = document.getElementById("tg-status");
-    tg.textContent = status.telegram ? "TG: ARMED" : "TG: OFF";
-    tg.className = status.telegram ? "armed" : "";
-
-    const tbody = document.querySelector("#log-table tbody");
-    tbody.innerHTML = "";
-    for (const c of CHAINS) {
-      for (const dir of ["USDC", "USDT"]) {
-        const out = dir === "USDC" ? "USDT" : "USDC";
-        const rows = latest.filter(
-          (q) => q.chain === c.id && q.tokenIn === dir && q.tokenOut === out,
-        );
-        if (!rows.length) continue;
-        const cells = SIZES.map((s) => {
-          const r = rows.find((q) => q.amountIn === s);
-          if (!r) return "<td>—</td>";
-          const hot = Math.abs(r.bps) >= HOT_BPS ? " class=\"hot\"" : "";
-          return `<td${hot}>${fmtBps(r.bps)}</td>`;
-        }).join("");
-        const venue = rows[0].venue;
-        const arrow = dir === "USDC" ? "USDC→USDT" : "USDT→USDC";
-        tbody.insertAdjacentHTML(
-          "beforeend",
-          `<tr><td>${c.label}</td><td style="text-align:right">${venue}</td><td>${arrow}</td>${cells}</tr>`,
-        );
-      }
-    }
-
-    document.getElementById("updated").textContent =
-      "last reading " + new Date().toLocaleTimeString();
-    document.getElementById("live-label").textContent = "RECORDING";
-  } catch (err) {
-    document.getElementById("live-label").textContent = "SIGNAL LOST";
-  }
-}
-
-refresh();
-setInterval(refresh, 30000);
-window.addEventListener("resize", redraw);
+document.getElementById("seg-size").addEventListener("click",(e)=>{const b=e.target.closest("button");if(!b)return;for(const x of b.parentElement.children)x.classList.remove("on");b.classList.add("on");state.size=Number(b.dataset.v);refresh();});
+window.addEventListener("resize",()=>{redrawAll();drawNet();});
+refresh(); setInterval(refresh,30000);
 </script>
 </body>
 </html>
