@@ -14,16 +14,20 @@ import {
   SIZES_USD,
 } from "./config.js";
 import { EpisodeDetector } from "./derive/episodes.js";
+import { PaperLedger } from "./derive/paper.js";
 import { computeBoard } from "./derive/spreads.js";
 import { Store } from "./store.js";
 
 const store = new Store(DB_PATH);
 store.clearEpisodes();
+store.clearPaperEntries();
 const detector = new EpisodeDetector(
   store,
   EPISODE_OPEN_BPS,
   EPISODE_CLOSE_BPS,
 );
+// re-derive the paper ledger under the current settle logic (bridge-time)
+const paper = new PaperLedger(store, EPISODE_OPEN_BPS);
 
 // Group quotes into ticks by poll-interval bucket.
 const rows = store.allQuotesOrdered();
@@ -38,12 +42,19 @@ let ticks = 0;
 for (const [bucket, quotes] of [...buckets.entries()].sort(
   (a, b) => a[0] - b[0],
 )) {
-  detector.update(
-    computeBoard(quotes, CHAIN_NAMES, SIZES_USD),
-    bucket * POLL_INTERVAL_MS,
-  );
+  const board = computeBoard(quotes, CHAIN_NAMES, SIZES_USD);
+  const tickTs = bucket * POLL_INTERVAL_MS;
+  detector.update(board, tickTs);
+  paper.update(board, tickTs);
   ticks++;
 }
+
+const ps = store.paperStats();
+console.log(
+  `\npaper ledger (re-derived, bridge-time settle): ${ps.settled} settled, ${ps.pending} pending` +
+    `\n  hit rate ${(ps.hitRate * 100).toFixed(1)}%  mean expected ${ps.meanExpectedBps.toFixed(2)}bps` +
+    `  mean realized ${ps.meanRealizedBps.toFixed(2)}bps  latency tax ${ps.meanSlippageBps.toFixed(2)}bps\n`,
+);
 
 const episodes = store.recentEpisodes(1000);
 console.log(`replayed ${ticks} ticks, ${episodes.length} episodes:`);

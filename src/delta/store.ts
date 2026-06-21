@@ -248,6 +248,10 @@ export class Store {
     ).map((r) => this.rowToPaper(r));
   }
 
+  clearPaperEntries(): void {
+    this.db.exec(`DELETE FROM paper_entries`);
+  }
+
   paperStats(): PaperStats {
     const settled = this.db
       .prepare(`SELECT * FROM paper_entries WHERE settled_ts IS NOT NULL`)
