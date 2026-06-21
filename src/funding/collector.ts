@@ -60,9 +60,15 @@ export function startCollector(store: Store): void {
   };
 
   let running = false;
+  let startedAt = 0;
+  const STALL_MS = FUNDING_POLL_INTERVAL_MS * 3; // self-heal a wedged tick
   const tick = async () => {
-    if (running) return; // skip if previous tick still in flight
+    if (running) {
+      if (Date.now() - startedAt < STALL_MS) return; // previous tick still in flight
+      console.warn(`[funding] tick stalled ${Math.round((Date.now() - startedAt) / 1000)}s — forcing reset`);
+    }
     running = true;
+    startedAt = Date.now();
     try {
       const snaps = (await Promise.all(venues.map(pollVenue))).flat();
       if (snaps.length === 0) {

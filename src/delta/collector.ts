@@ -73,9 +73,15 @@ export function startCollector(store: Store): void {
   const paper = new PaperLedger(store, EPISODE_OPEN_BPS);
 
   let running = false;
+  let startedAt = 0;
+  const STALL_MS = POLL_INTERVAL_MS * 3; // self-heal a wedged tick
   const tick = async () => {
-    if (running) return; // skip if previous tick still in flight
+    if (running) {
+      if (Date.now() - startedAt < STALL_MS) return; // skip if previous tick still in flight
+      console.warn(`[delta] tick stalled ${Math.round((Date.now() - startedAt) / 1000)}s — forcing reset`);
+    }
     running = true;
+    startedAt = Date.now();
     try {
       const results = await Promise.all(quoters.map(collectChain));
       const quotes = results.flat();
