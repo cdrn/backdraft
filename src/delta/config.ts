@@ -24,6 +24,13 @@ export const POLL_INTERVAL_MS = Number(
 // tradeable dislocation. Keeps deep depegs, drops empty-pool fantasy.
 export const MAX_IMPACT_BPS = Number(process.env.DELTA_MAX_IMPACT_BPS ?? 75);
 
+// Absolute sanity bound on a cross-chain round-trip. A stable/stable cycle
+// showing more gross than this is a broken/garbage quote (a single mispriced
+// leg routing through an empty pool), not a real dislocation — drop it before
+// it reaches the episode catalog or paper ledger. Genuine depegs net far less
+// than 2% on a round trip; the leaks we've seen are 25%+ (2500bps).
+export const MAX_GROSS_BPS = Number(process.env.DELTA_MAX_GROSS_BPS ?? 200);
+
 export const DB_PATH = process.env.DELTA_DB_PATH ?? "delta.db";
 
 export const PORT = Number(process.env.DELTA_PORT ?? 4747);

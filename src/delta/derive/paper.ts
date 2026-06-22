@@ -72,15 +72,30 @@ export class PaperLedger {
   update(cells: BoardCell[], ts: number): void {
     const best = this.bestPerRoute(cells);
 
+    // A route can hold at most ONE in-flight paper position at a time. A
+    // standing cross-chain basis (e.g. USDT persistently cheaper on Base than
+    // Ethereum) is a single dislocation, not a fresh capture every 60s poll —
+    // modelling it as the latter stacks hundreds of $100k trades on one offset
+    // and manufactures PnL that no finite-capital, finite-depth trader could
+    // realise. We open once, hold until the bridge window settles it, and only
+    // then is the route free to re-enter if the basis is still there.
+    const pendingRoutes = new Set<string>();
+
     // 1. settle entries whose route has had time to actually complete — i.e.
     //    the real bridge/rebalance window has elapsed since open. Re-price the
     //    same route now: does the dislocation survive the transit?
     for (const e of this.store.pendingPaperEntries()) {
       const elapsedMin = (ts - e.openedTs) / 60_000;
       const matureMin = bridgeMinutes(e.route);
-      if (elapsedMin < matureMin) continue; // still mid-bridge — leave pending
+      if (elapsedMin < matureMin) {
+        pendingRoutes.add(e.route); // still mid-bridge — route is occupied
+        continue;
+      }
       const cell = best.get(e.route);
-      if (!cell && elapsedMin < matureMin + SETTLE_GRACE_MIN) continue; // gap — retry
+      if (!cell && elapsedMin < matureMin + SETTLE_GRACE_MIN) {
+        pendingRoutes.add(e.route); // gap — retry, route still occupied
+        continue;
+      }
       const realizedBps = cell ? cell.netBps : -9999; // gone past grace = unfillable
       this.store.settlePaperEntry(
         e.id,
@@ -91,11 +106,13 @@ export class PaperLedger {
     }
 
     // 2. open new entries for routes currently above the entry threshold,
-    //    at the size with the best net dollars
+    //    at the size with the best net dollars — but never a route that
+    //    already has a position in flight (set above).
     const bySize = new Map<string, BoardCell>();
     for (const c of cells) {
       if (c.netBps < this.entryThresholdBps) continue;
       const route = `${c.pair} ${c.from}→${c.to}`;
+      if (pendingRoutes.has(route)) continue;
       const prev = bySize.get(route);
       if (!prev || c.netUsd > prev.netUsd) bySize.set(route, c);
     }

@@ -1,4 +1,4 @@
-import { MAX_IMPACT_BPS, PAIRS } from "../config.js";
+import { MAX_GROSS_BPS, MAX_IMPACT_BPS, PAIRS } from "../config.js";
 import { costBps, routeCost } from "../costs.js";
 
 // Round-trip math per pair: buy the quote token with the base token on
@@ -80,6 +80,9 @@ export function computeBoard(
           if (tooThin(from, pair.base, pair.quote, size, buy)) continue;
           if (tooThin(to, pair.quote, pair.base, size, sell)) continue;
           const grossBps = (buy * sell - 1) * 10_000;
+          // A stable round-trip this far from par is a broken quote, not a
+          // dislocation — drop it so it never reaches episodes/paper.
+          if (Math.abs(grossBps) > MAX_GROSS_BPS) continue;
           const cost = costBps(rc, size);
           const netBps = grossBps - cost;
           cells.push({
