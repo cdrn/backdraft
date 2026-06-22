@@ -1,8 +1,14 @@
 # Backdraft
 
-MEV searcher and contract deployment scanner. Modular pipeline architecture — listeners detect on-chain events, detectors analyze them, executor acts on findings.
+Real-time instrumentation for exploitable on-chain structure on Ethereum, Base, and Arbitrum — and the execution to act on it. Three subsystems share the same plumbing (RPC clients, SQLite persistence, Telegram alerts) but run as independent processes so one can churn without gapping another's dataset:
 
-## Architecture
+- **Scanner + executor** — the original MEV searcher. Listeners detect contract deployments and new DEX pools, a two-phase detector pipeline analyzes them (honeypots, proxies, open withdrawals, arb), and the executor acts (claim / snipe / arb). Architecture below.
+- **`delta`** — stablecoin venue-basis seismograph (`src/delta/`, own container + DB). Continuously records the *executable* price of swapping stablecoins at size ($1k–$1M) across Ethereum/Base/Arbitrum (UniV3 QuoterV2) and Solana (Jupiter), derives a cross-chain dislocation board and episode catalog net of a rebalance cost model, and paper-trades the result. Dashboard on `:4747`. See `src/delta/`.
+- **`funding`** — perp funding-basis seismograph (`src/funding/`, own container + DB). Tracks cross-venue perpetual funding rates and order-book impact to surface carry dislocations, paper-first. Dashboard on `:4748`. See `src/funding/`.
+
+The common thread: watch a market for structure that shouldn't persist — a sell-blocking honeypot, a stablecoin trading off-peg on one chain, a perp paying to hold one side — measure it net of the real cost to act, and only then decide whether it's worth acting on.
+
+## Scanner architecture
 
 ```
 Listeners                    Pipeline                         Output
@@ -101,6 +107,16 @@ src/
     index.ts              SQLite persistence
   alerts/
     telegram.ts           Telegram bot alerts
-  index.ts                Entry point
+  index.ts                Entry point (scanner + executor)
+  delta/                  Stablecoin venue-basis seismograph (own entry: delta/main.ts)
+    collector.ts          Polls executable quotes across chains
+    derive/               Spread board, episode detector, paper ledger
+    costs.ts              Per-corridor rebalance cost model
+    backfill.ts           Replays quote history after threshold/cost changes
+  funding/                Perp funding-basis seismograph (own entry: funding/main.ts)
+    collector.ts          Polls cross-venue funding + order books
+    derive/               Funding dispersion + book-impact models
 contracts/                Solidity contracts (Foundry)
 ```
+
+Run the modules independently: `npm run delta` / `npm run funding` (dev), or `npm run start:delta` / `npm run start:funding` (built). Each keeps its own SQLite DB so the dataset stays continuous.
