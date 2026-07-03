@@ -160,7 +160,7 @@ async function main() {
 
     const handler = makeHandler(client);
 
-    if (flags.deploymentListener) {
+    if (flags.deploymentListener && flags.deploymentChains.has(name)) {
       const deployListener = new DeploymentListener(client, name);
       deployListener.onDeploy(handler);
       await deployListener.start();
@@ -173,7 +173,7 @@ async function main() {
       discovery = new PairDiscovery(client, store);
     }
 
-    if (flags.factoryListener) {
+    if (flags.factoryListener && flags.factoryChains.has(name)) {
       const factoryListener = new FactoryListener(client, name);
       factoryListener.onDeploy(handler);
       if (discovery) {
