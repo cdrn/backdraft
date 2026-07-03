@@ -3,6 +3,7 @@ import {
   EPISODE_CLOSE_BPS,
   EPISODE_OPEN_BPS,
   EVM_CHAINS,
+  HOOD_CONFIG,
   PAIRS,
   POLL_INTERVAL_MS,
   SIZES_USD,
@@ -11,6 +12,7 @@ import {
 import { EpisodeDetector } from "./derive/episodes.js";
 import { PaperLedger } from "./derive/paper.js";
 import { computeBoard } from "./derive/spreads.js";
+import { HoodV4Quoter } from "./quoters/hood-v4.js";
 import { KyberQuoter } from "./quoters/kyber.js";
 import { JupiterQuoter } from "./quoters/solana.js";
 import type { Store } from "./store.js";
@@ -22,9 +24,11 @@ function directionsFor(quoter: Quoter): [string, string][] {
   const symbols =
     quoter.chain === "solana"
       ? Object.keys(SOLANA_TOKENS)
-      : Object.keys(
-          EVM_CHAINS.find((c) => c.name === quoter.chain)?.tokens ?? {},
-        );
+      : quoter.chain === HOOD_CONFIG.name
+        ? Object.keys(HOOD_CONFIG.tokens)
+        : Object.keys(
+            EVM_CHAINS.find((c) => c.name === quoter.chain)?.tokens ?? {},
+          );
   return PAIRS.filter(
     (p) => symbols.includes(p.base) && symbols.includes(p.quote),
   ).flatMap((p) => [
@@ -56,6 +60,7 @@ export function startCollector(store: Store): void {
   const quoters: Quoter[] = [
     ...EVM_CHAINS.map((c) => new KyberQuoter(c)),
     new JupiterQuoter(),
+    new HoodV4Quoter(),
   ].filter((q) => directionsFor(q).length > 0);
   const chains = quoters.map((q) => q.chain);
 

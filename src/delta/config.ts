@@ -10,6 +10,10 @@ export const PAIRS: { base: string; quote: string }[] = [
   { base: "USDC", quote: "PYUSD" },
   { base: "USDC", quote: "USDC.e" },
   { base: "USDC", quote: "USDG" },
+  // USDG/USDe is the only stable/stable pair on Robinhood Chain (no bridged
+  // USDC/USDT there). It also lists on mainnet, so this pair forms the
+  // cross-venue USDG basis (Hood v4 vs mainnet) off the shared USDe leg.
+  { base: "USDG", quote: "USDe" },
 ];
 
 // Episode detection thresholds (net bps after cost model)
@@ -177,4 +181,46 @@ export const SOLANA_TOKENS: Record<string, { mint: string; decimals: number }> =
 
 export const JUPITER_QUOTE_URL = "https://lite-api.jup.ag/swap/v1/quote";
 
-export const CHAIN_NAMES = [...EVM_CHAINS.map((c) => c.name), "solana"];
+// Robinhood Chain (chain 4663) — no keyless aggregator indexes it yet
+// (Kyber/Odos both 404), so we quote its Uniswap v4 pools directly on-chain
+// via the free public RPC. v4 is a singleton PoolManager; a swap is quoted
+// through the V4Quoter with the pool's full PoolKey (fee/tickSpacing/hooks).
+// Addresses verified on-chain 2026-07-03 (all have code; PoolManager custodies
+// ~$2.4M USDG + $630k USDe). Pool configs discovered via V4Quoter probe.
+export interface HoodPoolKey {
+  fee: number;
+  tickSpacing: number;
+  hooks: `0x${string}`;
+}
+
+export const HOOD_CONFIG = {
+  name: "robinhood",
+  rpcUrl: process.env.HOOD_RPC_URL ?? "https://rpc.mainnet.chain.robinhood.com",
+  v4Quoter: "0x8dc178efb8111bb0973dd9d722ebeff267c98f94" as `0x${string}`,
+  tokens: {
+    USDG: {
+      symbol: "USDG",
+      address: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168" as `0x${string}`,
+      decimals: 6,
+    },
+    USDe: {
+      symbol: "USDe",
+      address: "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34" as `0x${string}`,
+      decimals: 18,
+    },
+  } as Record<string, EvmToken>,
+  // Keyed by unordered "SYM/SYM"; the quoter checks both orderings.
+  pools: {
+    "USDG/USDe": {
+      fee: 100,
+      tickSpacing: 1,
+      hooks: "0x0000000000000000000000000000000000000000",
+    },
+  } as Record<string, HoodPoolKey>,
+};
+
+export const CHAIN_NAMES = [
+  ...EVM_CHAINS.map((c) => c.name),
+  "solana",
+  HOOD_CONFIG.name,
+];
