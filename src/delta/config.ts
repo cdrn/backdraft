@@ -9,6 +9,7 @@ export const PAIRS: { base: string; quote: string }[] = [
   { base: "USDC", quote: "USDe" },
   { base: "USDC", quote: "PYUSD" },
   { base: "USDC", quote: "USDC.e" },
+  { base: "USDC", quote: "USDG" },
 ];
 
 // Episode detection thresholds (net bps after cost model)
@@ -81,6 +82,16 @@ export const EVM_CHAINS: EvmChainConfig[] = [
       PYUSD: {
         symbol: "PYUSD",
         address: "0x6c3ea9036406852006290770BEdFcAbA0e23A0e8",
+        decimals: 6,
+      },
+      // Paxos Global Dollar — Robinhood's chosen stablecoin (Robinhood Earn
+      // lends USDG). Verified on-chain: symbol USDG, 6 decimals. Deep mainnet
+      // DEX liquidity via Kyber (flat ~1.0000 to $1M). This mainnet leg is the
+      // reference for the Robinhood Chain USDG basis; the Hood leg needs its
+      // own quote source (no keyless aggregator indexes chain 4663 yet).
+      USDG: {
+        symbol: "USDG",
+        address: "0xe343167631d89B6Ffc58B88d6b7fB0228795491D",
         decimals: 6,
       },
     },
