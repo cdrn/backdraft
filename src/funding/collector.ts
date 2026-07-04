@@ -4,6 +4,7 @@ import { computeImpact, type BookImpact } from "./derive/impact.js";
 import { PaperLedger } from "./derive/paper.js";
 import type { Store } from "./store.js";
 import type { FundingSnapshot, FundingVenue } from "./types.js";
+import { ArcusVenue } from "./venues/arcus.js";
 import { DydxVenue } from "./venues/dydx.js";
 import { HyperliquidVenue } from "./venues/hyperliquid.js";
 import { OkxVenue } from "./venues/okx.js";
@@ -18,6 +19,7 @@ export function startCollector(store: Store): void {
     new DydxVenue(),
     new OkxVenue(),
     new ParadexVenue(),
+    new ArcusVenue(),
   ];
   console.log(
     `[funding] venues: ${venues.map((v) => `${v.name}(${v.intervalHours}h)`).join(", ")}  symbols: ${SYMBOLS.join(",")}`,
