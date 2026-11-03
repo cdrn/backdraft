@@ -1,7 +1,7 @@
 // Seismograph entrypoint — runs every observatory in ONE process / container:
 //   delta   stablecoin cross-chain basis        :4747
 //   funding cross-venue perp funding basis      :4748
-//   spread  CEX↔DEX realizable spread           :4749
+//   spread  CEX↔DEX realizable spread           :4750
 // They share nothing but the poll-and-store pattern; each keeps its own
 // SQLite DB and HTTP port. One container because all three are calm poll
 // loops on the same image that redeploy together.

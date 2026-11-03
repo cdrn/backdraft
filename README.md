@@ -6,7 +6,7 @@ Cross-venue dislocation seismographs. Three instruments share one process, one i
 |---|---|---|---|
 | **`delta`** | Is the same dollar-stablecoin cheaper on one chain than another, net of bridging? | KyberSwap (ETH/Base/Arb), Jupiter (Solana), Uniswap v4 (Robinhood Chain) | `:4747` |
 | **`funding`** | Is one perp venue paying to hold a side the others aren't, net of fees and book impact? | Hyperliquid, dYdX, OKX, Paradex, Arcus | `:4748` |
-| **`spread`** | Is the CEX↔DEX spread on a liquid pair positive after exchange fee, gas and impact — and does it survive landing late? | Coinbase, OKX, (Binance), Uniswap V3 on Base + Arbitrum | `:4749` |
+| **`spread`** | Is the CEX↔DEX spread on a liquid pair positive after exchange fee, gas and impact — and does it survive landing late? | Coinbase, OKX, (Binance), Uniswap V3 on Base + Arbitrum | `:4750` |
 
 Nothing here costs money to run. Every data source is a keyless public endpoint and every on-chain quote is an `eth_call` against a public RPC — the spread module packs an entire tick's quotes into one Multicall3 call per chain.
 

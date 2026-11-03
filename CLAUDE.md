@@ -1,7 +1,7 @@
 # Backdraft
 
 ## Overview
-Cross-venue dislocation seismographs: `delta` (stablecoin cross-chain basis), `funding` (perp funding basis), `spread` (CEX↔DEX realizable spread). One process (`src/seismograph.ts`), one Docker image, three SQLite DBs, three dashboards (:4747 / :4748 / :4749). Pattern everywhere: poll → store raw → derive net-of-cost board → episodes with hysteresis → paper ledger → Telegram on episode open/close.
+Cross-venue dislocation seismographs: `delta` (stablecoin cross-chain basis), `funding` (perp funding basis), `spread` (CEX↔DEX realizable spread). One process (`src/seismograph.ts`), one Docker image, three SQLite DBs, three dashboards (:4747 / :4748 / :4750). Pattern everywhere: poll → store raw → derive net-of-cost board → episodes with hysteresis → paper ledger → Telegram on episode open/close.
 
 The scanner/executor/honeypot-detector that this repo started as is retired (`archive/scanner-2026-11` branch). It was the entire Alchemy bill and had no proven edge. Do not resurrect it on master.
 

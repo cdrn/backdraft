@@ -6,7 +6,7 @@
 #
 # Then: scp .env root@<ip>:/opt/backdraft/.env && ssh root@<ip> 'cd /opt/backdraft && docker compose up -d'
 # Dashboards bind to localhost only; reach them with
-#   ssh -L 4749:localhost:4749 -L 4747:localhost:4747 -L 4748:localhost:4748 root@<ip>
+#   ssh -L 4750:localhost:4750 -L 4747:localhost:4747 -L 4748:localhost:4748 root@<ip>
 package_update: true
 package_upgrade: true
 packages: [ca-certificates, curl, git, ufw, fail2ban, unattended-upgrades]

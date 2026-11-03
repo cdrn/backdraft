@@ -1,5 +1,5 @@
 services:
-  # All three seismographs — delta (:4747), funding (:4748), spread (:4749) —
+  # All three seismographs — delta (:4747), funding (:4748), spread (:4750) —
   # in one process. Each keeps its own SQLite DB under /app/data. No paid
   # RPC: every data source is a keyless public endpoint.
   seismograph:
@@ -14,7 +14,7 @@ services:
     ports:
       - "127.0.0.1:4747:4747"
       - "127.0.0.1:4748:4748"
-      - "127.0.0.1:4749:4749"
+      - "127.0.0.1:4750:4750"
     volumes:
       - seismograph-data:/app/data
 

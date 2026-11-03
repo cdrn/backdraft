@@ -9,7 +9,7 @@
 import { arbitrum, base, type Chain } from "viem/chains";
 
 export const DB_PATH = process.env.SPREAD_DB_PATH ?? "spread.db";
-export const PORT = Number(process.env.SPREAD_PORT ?? 4749);
+export const PORT = Number(process.env.SPREAD_PORT ?? 4750);
 export const PUBLIC_DIR = process.env.SPREAD_PUBLIC_DIR ?? "public/spread";
 
 // 10s default: fast enough to see a dislocation form and decay, slow enough
