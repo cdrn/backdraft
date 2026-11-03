@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spread · CEX↔DEX realizable spread</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0b0d11; --panel:#13161c; --panel-2:#161a21; --edge:#232830; --edge-2:#1b2027;
+    --txt:#e7ebf0; --dim:#8b97a4; --faint:#586470;
+    --green:#2ecc8f; --red:#ef6060; --amber:#e0a64b; --accent:#2ecc8f;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--txt); font-family:"JetBrains Mono",monospace; font-size:13px; line-height:1.5; min-height:100vh; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1080px; margin:0 auto; padding:34px 16px 80px; }
+  header { display:flex; align-items:center; justify-content:space-between; gap:20px; padding-bottom:18px; margin-bottom:8px; border-bottom:1px solid var(--edge); flex-wrap:wrap; }
+  .brand { display:flex; align-items:baseline; gap:13px; }
+  .brand h1 { font-family:"Archivo",sans-serif; font-weight:800; font-size:22px; letter-spacing:-0.02em; }
+  .brand .tag { font-family:"Archivo",sans-serif; font-size:11px; color:var(--faint); }
+  .status { display:flex; gap:12px; align-items:center; font-size:11px; color:var(--dim); flex-wrap:wrap; }
+  .pill { display:inline-flex; align-items:center; gap:6px; padding:2px 8px; border-radius:6px; border:1px solid var(--edge); }
+  .pill::before { content:""; width:6px; height:6px; border-radius:50%; background:var(--green); }
+  .pill.bad::before { background:var(--red); }
+  .explainer { font-size:12px; color:var(--dim); margin:14px 2px 22px; line-height:1.65; }
+  .explainer b { color:var(--txt); }
+  .panel { background:var(--panel); border:1px solid var(--edge); border-radius:10px; }
+  .pad { padding:18px 20px; }
+  .lbl { font-family:"Archivo",sans-serif; font-size:9.5px; text-transform:uppercase; letter-spacing:0.15em; color:var(--faint); }
+  .hero { display:grid; grid-template-columns:1.3fr 1fr; overflow:hidden; margin-bottom:14px; }
+  .hero .left { padding:20px 22px; }
+  .hero .right { padding:20px 22px; border-left:1px solid var(--edge); display:flex; flex-direction:column; justify-content:center; }
+  .hero .action { font-family:"Archivo",sans-serif; font-size:22px; font-weight:700; line-height:1.25; margin-top:8px; letter-spacing:-0.01em; }
+  .hero .action .buy { color:var(--green); } .hero .action .sell { color:var(--amber); }
+  .hero .via { font-size:11px; color:var(--dim); margin-top:10px; line-height:1.6; }
+  .hero .bignum { font-weight:800; font-size:46px; line-height:1; letter-spacing:-0.03em; }
+  .pos { color:var(--green); } .neg { color:var(--red); } .dim { color:var(--faint); }
+  .hero .perk { font-size:12px; color:var(--dim); margin-top:8px; }
+  .hero .perk b { color:var(--txt); }
+  .controls { display:flex; gap:18px; align-items:center; margin:0 2px 16px; flex-wrap:wrap; }
+  .seg { display:flex; border:1px solid var(--edge); border-radius:7px; overflow:hidden; }
+  .seg button { font-family:"JetBrains Mono",monospace; font-size:11px; padding:5px 13px; border:none; background:transparent; color:var(--dim); cursor:pointer; border-right:1px solid var(--edge); }
+  .seg button:last-child { border-right:none; }
+  .seg button.on { background:var(--accent); color:#06231a; font-weight:600; }
+  .sec { font-family:"Archivo",sans-serif; font-weight:600; font-size:14px; padding:6px 2px 10px; display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .sec .sub2 { font-size:10px; text-transform:uppercase; letter-spacing:0.13em; color:var(--faint); font-weight:400; }
+  .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--edge); border:1px solid var(--edge); border-radius:10px; overflow:hidden; margin-bottom:14px; }
+  .kpi { background:var(--panel); padding:14px 16px; }
+  .kpi .v { font-weight:700; font-size:23px; margin-top:5px; letter-spacing:-0.02em; }
+  .kpi .d { font-size:10px; color:var(--dim); margin-top:3px; }
+  .tbl { overflow-x:auto; }
+  table.lst { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  table.lst th { font-family:"Archivo",sans-serif; font-size:9.5px; text-transform:uppercase; letter-spacing:0.13em; color:var(--faint); text-align:right; padding:10px 13px; border-bottom:1px solid var(--edge); font-weight:600; white-space:nowrap; }
+  table.lst th:first-child, table.lst td:first-child { text-align:left; }
+  table.lst td { padding:10px 13px; text-align:right; border-bottom:1px solid var(--edge-2); font-size:12px; white-space:nowrap; }
+  table.lst tbody tr:last-child td { border-bottom:none; }
+  table.lst tbody tr:hover { background:var(--panel-2); }
+  .big { font-size:14px; font-weight:700; }
+  .live-pill { font-family:"Archivo",sans-serif; font-size:8.5px; padding:2px 7px; border-radius:5px; background:rgba(46,204,143,0.15); color:var(--green); text-transform:uppercase; letter-spacing:0.06em; margin-left:6px; }
+  .bar { display:inline-block; height:6px; border-radius:3px; background:var(--green); vertical-align:middle; margin-right:6px; opacity:.8; }
+  canvas { display:block; width:100%; cursor:crosshair; }
+  .chart-wrap { padding:8px 6px 4px; }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:11px; }
+  .legend .it { display:inline-flex; align-items:center; gap:6px; color:var(--dim); }
+  .legend .sw { width:14px; height:3px; border-radius:2px; }
+  .legend .v { color:var(--txt); font-weight:600; }
+  #tooltip { position:fixed; z-index:50; pointer-events:none; background:#0f141a; border:1px solid var(--edge); border-radius:8px; padding:8px 10px; font-size:11px; display:none; min-width:150px; }
+  #tooltip .tt-t { color:var(--faint); font-size:9px; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:5px; }
+  #tooltip .tt-r { display:flex; justify-content:space-between; gap:14px; line-height:1.7; }
+  #tooltip .tt-r i { width:9px; height:3px; border-radius:2px; display:inline-block; margin-right:6px; }
+  .note { font-size:10px; color:var(--faint); padding:11px 20px 15px; line-height:1.6; }
+  .note b { color:var(--dim); }
+  footer { margin-top:30px; padding-top:14px; border-top:1px solid var(--edge); display:flex; justify-content:space-between; font-size:10px; color:var(--faint); flex-wrap:wrap; gap:8px; }
+  @media (max-width:820px){ .hero{grid-template-columns:1fr} .hero .right{border-left:none;border-top:1px solid var(--edge)} .kpis{grid-template-columns:1fr 1fr} .hero .bignum{font-size:36px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><h1>SPREAD</h1><span class="tag">CEX ↔ DEX realizable spread</span></div>
+    <div class="status" id="health"></div>
+  </header>
+  <div class="explainer">
+    The same asset trades on a centralized exchange and on an on-chain pool at slightly different prices. This watches both and asks: after the <b>exchange fee</b>, <b>gas</b>, <b>pool fee</b>, <b>book impact</b> and <b>rebalance</b>, is there anything left — and does it survive landing <b id="lat">one tick</b> late? <b>bps</b> = hundredths of a percent. Fee tier in use: <span id="fees"></span>.
+  </div>
+
+  <div class="panel hero">
+    <div class="left">
+      <div class="lbl">best clip right now</div>
+      <div class="action" id="hero-action">—</div>
+      <div class="via" id="hero-via"></div>
+    </div>
+    <div class="right">
+      <div class="lbl">net edge</div>
+      <div class="bignum" id="hero-bps">—</div>
+      <div class="perk" id="hero-usd"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <span class="lbl">clip size</span>
+    <div class="seg" id="seg-size"></div>
+    <span class="lbl">window</span>
+    <div class="seg" id="seg-days"><button data-v="1">24h</button><button data-v="7" class="on">7d</button><button data-v="30">30d</button></div>
+  </div>
+
+  <div class="sec">Does the edge survive the lag? <span class="sub2">paper ledger · quote vs re-price after your latency</span></div>
+  <div class="kpis" id="kpis"></div>
+
+  <div class="sec">Routes <span class="sub2">how often each one pays, and how fat the tail is</span></div>
+  <div class="panel tbl" style="margin-bottom:14px;">
+    <table class="lst" id="routes"><thead><tr>
+      <th>Route</th><th>Net now</th><th>Ticks &gt; 0</th><th>p50</th><th>p90</th><th>Max</th><th>Episodes</th><th>Median dur.</th>
+    </tr></thead><tbody></tbody></table>
+    <div class="note"><b>Ticks &gt; 0</b> is the share of polls where the route was net-positive at this size. A route is interesting when that share is non-trivial <i>and</i> episodes last longer than your latency. <b>Episodes</b> open above the alert threshold and close with hysteresis.</div>
+  </div>
+
+  <div class="sec">Net edge over time <span class="sub2">top routes · above zero = money · hover to read</span></div>
+  <div class="panel" style="margin-bottom:14px;">
+    <div class="pad" style="padding-bottom:0;"><span class="legend" id="chart-legend"></span></div>
+    <div class="chart-wrap"><canvas id="cv-net" height="240"></canvas></div>
+  </div>
+
+  <div class="sec">Recent episodes <span class="sub2">dislocations that cleared the threshold</span></div>
+  <div class="panel tbl">
+    <table class="lst" id="episodes"><thead><tr><th>Route</th><th>Opened</th><th>Lasted</th><th>Peak</th><th>Best size</th><th>$/clip</th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <footer><span>backdraft · spread — CEX↔DEX instrument</span><span id="updated"></span></footer>
+</div>
+<div id="tooltip"></div>
+
+<script>
+const COLORS = ["#2ecc8f","#4d8df6","#c77ee0","#e0a64b","#46c7e0","#ef6060"];
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmtBps = (b) => (b==null||Number.isNaN(b)) ? "—" : (b>=0?"+":"")+b.toFixed(1);
+const fmtSize = (s) => s>=1e6 ? "$"+s/1e6+"M" : "$"+s/1e3+"k";
+const fmtUsd = (v) => (v==null) ? "—" : (v>=0?"$":"−$")+Math.abs(v).toFixed(2);
+const fmtDur = (s) => s==null ? "—" : s>=3600 ? (s/3600).toFixed(1)+"h" : s>=120 ? Math.round(s/60)+"m" : Math.round(s)+"s";
+const cap = (s) => s.charAt(0).toUpperCase()+s.slice(1);
+const prettyRoute = (r) => { const sp=r.indexOf(" "); const pair=r.slice(0,sp); const [a,b]=r.slice(sp+1).split("→"); return `${pair} · ${cap(a)} → ${cap(b)}`; };
+let state = { size:null, days:7, status:null, openBps:5 };
+
+function heat(bps) { if (bps==null) return "dim"; if (bps>=state.openBps) return "pos big"; if (bps>0) return "pos"; return "neg"; }
+
+function renderStatus(s) {
+  state.status=s; state.openBps=s.openBps;
+  document.getElementById("lat").textContent = (s.latencyMs/1000)+"s";
+  document.getElementById("fees").textContent = s.cex.map(c=>`${c.name} ${c.feeBps}bps ${s.exec}`).join(" · ");
+  document.getElementById("health").innerHTML = s.health.map(h=>`<span class="pill ${h.ok?"":"bad"}" title="${h.lastError||"ok"}">${h.name}</span>`).join("") + `<span>poll ${Math.round(s.pollIntervalMs/1000)}s</span>`;
+  const seg=document.getElementById("seg-size");
+  if (!seg.children.length) { seg.innerHTML = s.sizes.map((v,i)=>`<button data-v="${v}" class="${i===0?"on":""}">${fmtSize(v)}</button>`).join(""); if (state.size==null) state.size=s.sizes[0]; }
+}
+
+function renderHero(board) {
+  let best=null; for (const c of board) { if (c.size!==state.size) continue; if (!best||c.netBps>best.netBps) best=c; }
+  const a=document.getElementById("hero-action"), v=document.getElementById("hero-via"), bps=document.getElementById("hero-bps"), usd=document.getElementById("hero-usd");
+  if (!best) { a.textContent="no data yet"; v.textContent=""; bps.textContent="—"; usd.textContent=""; return; }
+  const [from,to] = best.route.slice(best.route.indexOf(" ")+1).split("→");
+  a.innerHTML = `Buy <span class="buy">${best.pair} on ${cap(from)}</span><br>→ sell on <span class="sell">${cap(to)}</span>`;
+  v.innerHTML = `dex ${best.dexPx.toFixed(2)} · cex ${best.cexPx.toFixed(2)} · gross ${fmtBps(best.grossBps)} bps<br>cost ${best.costBps.toFixed(1)} bps = fee ${best.feeBps.toFixed(1)} + gas ${best.gasBps.toFixed(2)} + rebalance ${best.rebalBps.toFixed(2)}`;
+  bps.textContent = fmtBps(best.netBps); bps.className = "bignum "+(best.netBps>0?"pos":"neg");
+  usd.innerHTML = `<b>${fmtUsd(best.netUsd)}</b> on one ${fmtSize(state.size)} clip`;
+}
+
+function renderRoutes(stats) {
+  const rows=[...stats].sort((a,b)=>(b.currentNetBps??-1e9)-(a.currentNetBps??-1e9));
+  const tb=document.querySelector("#routes tbody");
+  if (!rows.length){ tb.innerHTML=`<tr><td colspan="8" class="dim" style="text-align:center;padding:20px">collecting…</td></tr>`; return; }
+  tb.innerHTML=rows.map(r=>`<tr>
+    <td>${prettyRoute(r.route)}${r.openNow?'<span class="live-pill">live</span>':""}</td>
+    <td class="${heat(r.currentNetBps)}">${fmtBps(r.currentNetBps)}</td>
+    <td><span class="bar" style="width:${Math.round(r.positiveShare*60)}px"></span>${(r.positiveShare*100).toFixed(1)}%</td>
+    <td class="${r.p50Bps>0?"pos":"dim"}">${fmtBps(r.p50Bps)}</td>
+    <td class="${r.p90Bps>0?"pos":"dim"}">${fmtBps(r.p90Bps)}</td>
+    <td class="${r.maxBps>0?"pos":"dim"}">${fmtBps(r.maxBps)}</td>
+    <td>${r.episodes}</td><td>${fmtDur(r.medianDurationSec)}</td></tr>`).join("");
+}
+
+function renderPaper(p) {
+  const s=p.stats;
+  document.getElementById("kpis").innerHTML=`
+    <div class="kpi"><div class="lbl">survives the lag</div><div class="v ${s.hitRate>0.5?"pos":"neg"}">${s.filled?(s.hitRate*100).toFixed(0)+"%":"—"}</div><div class="d">${s.filled} filled · ${s.unfillable} vanished</div></div>
+    <div class="kpi"><div class="lbl">net you'd capture</div><div class="v ${s.meanRealizedBps>0?"pos":"neg"}">${s.filled?fmtBps(s.meanRealizedBps)+" bps":"—"}</div><div class="d">vs ${fmtBps(s.meanExpectedBps)} quoted</div></div>
+    <div class="kpi"><div class="lbl">latency tax</div><div class="v">${s.filled?fmtBps(s.latencyTaxBps)+" bps":"—"}</div><div class="d">quote → landing ${state.status?(state.status.latencyMs/1000)+"s":""} later</div></div>
+    <div class="kpi"><div class="lbl">paper P&amp;L</div><div class="v ${s.realizedUsdTotal>0?"pos":"neg"}">${s.filled?fmtUsd(s.realizedUsdTotal):"—"}</div><div class="d">${s.pending} pending</div></div>`;
+}
+
+function renderEpisodes(eps) {
+  const tb=document.querySelector("#episodes tbody");
+  if (!eps.length){ tb.innerHTML=`<tr><td colspan="6" class="dim" style="text-align:center;padding:20px">none yet — nothing has cleared +${state.openBps} bps net</td></tr>`; return; }
+  tb.innerHTML=eps.slice(0,25).map(e=>`<tr>
+    <td>${prettyRoute(e.route)}${e.closedTs?"":'<span class="live-pill">live</span>'}</td>
+    <td>${new Date(e.openedTs).toLocaleString()}</td>
+    <td>${fmtDur(((e.closedTs??e.lastTs)-e.openedTs)/1000)}</td>
+    <td class="pos">${fmtBps(e.peakBps)}</td><td>${fmtSize(e.peakSize)}</td><td>${fmtUsd(e.peakUsd)}</td></tr>`).join("");
+}
+
+// ---- chart ----
+let netSeries=null, netGeom=null;
+function lineChart(canvas, series, opts={}) {
+  const dpr=window.devicePixelRatio||1, w=canvas.clientWidth, h=canvas.clientHeight;
+  canvas.width=w*dpr; canvas.height=h*dpr; const ctx=canvas.getContext("2d"); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h);
+  const padL=44,padR=12,padT=12,padB=20, x0=padL,x1=w-padR,y0=padT,y1=h-padB;
+  const all=series.flatMap(s=>s.points.map(p=>p.v)); all.push(0, state.openBps);
+  let lo=Math.min(...all),hi=Math.max(...all); if(!isFinite(lo))lo=0; if(!isFinite(hi))hi=1;
+  const pv=(hi-lo)*0.15||1; lo-=pv; hi+=pv;
+  const mins=opts.minutes||60, now=Date.now(), t0=now-mins*60000;
+  const X=t=>x0+((t-t0)/(now-t0))*(x1-x0), Y=v=>y1-((v-lo)/(hi-lo))*(y1-y0);
+  if(lo<0&&hi>0){ctx.fillStyle="rgba(46,204,143,0.05)";ctx.fillRect(x0,y0,x1-x0,Y(0)-y0);}
+  ctx.font="9px 'JetBrains Mono'"; ctx.textBaseline="middle";
+  for(let i=0;i<=4;i++){const v=lo+(hi-lo)*i/4,y=Y(v);ctx.strokeStyle=css("--edge-2");ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x0,y);ctx.lineTo(x1,y);ctx.stroke();ctx.fillStyle=css("--faint");ctx.textAlign="right";ctx.fillText((v>=0?"+":"")+v.toFixed(0),x0-7,y);}
+  if(lo<0&&hi>0){const y=Y(0);ctx.strokeStyle=css("--edge");ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(x0,y);ctx.lineTo(x1,y);ctx.stroke();ctx.setLineDash([]);}
+  if(!series.some(s=>s.points.length)){ctx.fillStyle=css("--faint");ctx.textAlign="center";ctx.fillText("collecting…",(x0+x1)/2,(y0+y1)/2);return null;}
+  for(const s of series){if(!s.points.length)continue;ctx.strokeStyle=s.color;ctx.lineWidth=1.6;ctx.lineJoin="round";ctx.beginPath();s.points.forEach((p,i)=>{const x=X(p.t),y=Y(p.v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();}
+  if(opts.hoverPx!=null&&opts.hoverPx>=x0&&opts.hoverPx<=x1){ctx.strokeStyle="rgba(231,235,240,0.25)";ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(opts.hoverPx,y0);ctx.lineTo(opts.hoverPx,y1);ctx.stroke();ctx.setLineDash([]);}
+  return {x0,x1,y0,y1,t0,now};
+}
+function renderNet(series) {
+  const entries=Object.entries(series).map(([r,pts])=>({r,pts:pts.map(p=>({t:p.ts,v:p.netBps})),last:pts.length?pts.at(-1).netBps:-1e9})).sort((a,b)=>b.last-a.last).slice(0,6);
+  netSeries=entries.map((e,i)=>({route:e.r,points:e.pts,color:COLORS[i%COLORS.length]}));
+  drawNet();
+  document.getElementById("chart-legend").innerHTML=entries.map((e,i)=>`<span class="it"><span class="sw" style="background:${COLORS[i%COLORS.length]}"></span>${prettyRoute(e.r)} <span class="v">${fmtBps(e.last)}</span></span>`).join("");
+}
+function drawNet(hoverPx){ if(!netSeries)return; netGeom=lineChart(document.getElementById("cv-net"),netSeries,{minutes:state.days===1?120:360,hoverPx}); }
+const cvNet=document.getElementById("cv-net"), tip=document.getElementById("tooltip");
+cvNet.addEventListener("mousemove",(e)=>{ if(!netGeom||!netSeries)return; const r=cvNet.getBoundingClientRect(),px=e.clientX-r.left;
+  if(px<netGeom.x0||px>netGeom.x1){tip.style.display="none";drawNet();return;} drawNet(px);
+  const t=netGeom.t0+((px-netGeom.x0)/(netGeom.x1-netGeom.x0))*(netGeom.now-netGeom.t0);
+  let rows="",tt=t; for(const s of netSeries){if(!s.points.length)continue;let np=s.points[0];for(const p of s.points)if(Math.abs(p.t-t)<Math.abs(np.t-t))np=p;tt=np.t;rows+=`<div class="tt-r"><span><i style="background:${s.color}"></i>${prettyRoute(s.route)}</span><span>${fmtBps(np.v)}</span></div>`;}
+  tip.innerHTML=`<div class="tt-t">${new Date(tt).toLocaleTimeString()}</div>${rows}`;tip.style.display="block";
+  let lx=e.clientX+14; if(lx+tip.offsetWidth>innerWidth-8)lx=e.clientX-tip.offsetWidth-14; tip.style.left=lx+"px";tip.style.top=(e.clientY+14)+"px";
+});
+cvNet.addEventListener("mouseleave",()=>{tip.style.display="none";drawNet();});
+
+async function refresh(){ try{
+  const status=await fetch("/api/status").then(r=>r.json()); renderStatus(status);
+  const mins = state.days===1?120:360;
+  const [board,stats,series,paper,eps]=await Promise.all([
+    fetch("/api/board").then(r=>r.json()),
+    fetch(`/api/stats?days=${state.days}&size=${state.size}`).then(r=>r.json()),
+    fetch(`/api/series?minutes=${mins}&size=${state.size}`).then(r=>r.json()),
+    fetch(`/api/paper?days=${state.days}&limit=1`).then(r=>r.json()),
+    fetch("/api/episodes?limit=25").then(r=>r.json()),
+  ]);
+  renderHero(board); renderRoutes(stats); renderNet(series); renderPaper(paper); renderEpisodes(eps);
+  document.getElementById("updated").textContent="updated "+new Date().toLocaleTimeString()+" · "+status.ticks24h+" ticks / 24h";
+}catch(e){ document.getElementById("updated").textContent="signal lost"; } }
+
+for (const id of ["seg-size","seg-days"]) document.getElementById(id).addEventListener("click",(e)=>{const b=e.target.closest("button");if(!b)return;for(const x of b.parentElement.children)x.classList.remove("on");b.classList.add("on");if(id==="seg-size")state.size=Number(b.dataset.v);else state.days=Number(b.dataset.v);refresh();});
+window.addEventListener("resize",()=>drawNet());
+refresh(); setInterval(refresh,15000);
+</script>
+</body>
+</html>

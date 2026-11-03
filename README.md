@@ -1,122 +1,93 @@
 # Backdraft
 
-Real-time instrumentation for exploitable on-chain structure on Ethereum, Base, and Arbitrum — and the execution to act on it. Three subsystems share the same plumbing (RPC clients, SQLite persistence, Telegram alerts) but run as independent processes so one can churn without gapping another's dataset:
+Cross-venue dislocation seismographs. Three instruments share one process, one image and one pattern — **poll keyless public endpoints, record the executable price, subtract the real cost to act, paper-trade the residual, and only then decide whether it's worth acting on**:
 
-- **Scanner + executor** — the original MEV searcher. Listeners detect contract deployments and new DEX pools, a two-phase detector pipeline analyzes them (honeypots, proxies, open withdrawals, arb), and the executor acts (claim / snipe / arb). Architecture below.
-- **`delta`** — stablecoin venue-basis seismograph (`src/delta/`, own container + DB). Continuously records the *executable* price of swapping stablecoins at size ($1k–$1M) across Ethereum/Base/Arbitrum (UniV3 QuoterV2) and Solana (Jupiter), derives a cross-chain dislocation board and episode catalog net of a rebalance cost model, and paper-trades the result. Dashboard on `:4747`. See `src/delta/`.
-- **`funding`** — perp funding-basis seismograph (`src/funding/`, own container + DB). Tracks cross-venue perpetual funding rates and order-book impact to surface carry dislocations, paper-first. Dashboard on `:4748`. See `src/funding/`.
+| module | question | sources | port |
+|---|---|---|---|
+| **`delta`** | Is the same dollar-stablecoin cheaper on one chain than another, net of bridging? | KyberSwap (ETH/Base/Arb), Jupiter (Solana), Uniswap v4 (Robinhood Chain) | `:4747` |
+| **`funding`** | Is one perp venue paying to hold a side the others aren't, net of fees and book impact? | Hyperliquid, dYdX, OKX, Paradex, Arcus | `:4748` |
+| **`spread`** | Is the CEX↔DEX spread on a liquid pair positive after exchange fee, gas and impact — and does it survive landing late? | Coinbase, OKX, (Binance), Uniswap V3 on Base + Arbitrum | `:4749` |
 
-The common thread: watch a market for structure that shouldn't persist — a sell-blocking honeypot, a stablecoin trading off-peg on one chain, a perp paying to hold one side — measure it net of the real cost to act, and only then decide whether it's worth acting on.
+Nothing here costs money to run. Every data source is a keyless public endpoint and every on-chain quote is an `eth_call` against a public RPC — the spread module packs an entire tick's quotes into one Multicall3 call per chain.
 
-## Scanner architecture
+The original contract-deployment scanner / MEV executor that this repo started as is retired. It burned ~97 CU/s of Alchemy watching three chains' blocks, and the 34-hour forensic pass found zero cross-DEX spreads above 5 bps and one real honeypot with ~$395 of victim inflow. Its code lives on the `archive/scanner-2026-11` branch.
+
+## spread — CEX↔DEX realizable spread
+
+The instrument built for the "can I get a foot in the CEX-DEX arb game" question. It does not try to be fast. It measures, at a 10-second cadence, what a non-colocated operator with a given exchange fee tier could actually have captured.
+
+Every tick, per pair (ETH, BTC) × chain (Base, Arbitrum) × CEX × clip size ($5k / $25k / $100k) × direction:
 
 ```
-Listeners                    Pipeline                         Output
-─────────────────           ──────────────────────           ──────────
-Deployment Listener  ──┐    Prescreen (bytecode, 0 RPC)     SQLite DB
-  (watches blocks)     ├──► Proxy Detector          ──────► Telegram
-Factory Listener     ──┘    Initializer Detector             Executor
-  (DEX pool events)         Open Withdrawal Detector           ├─ Claim
-Pool Price Monitor          Ownership Detector                 ├─ Snipe
-  (arb opportunities)       Value Detector                     └─ Arb
-                            Honeypot Detector
+dex→cex   spend $size USDC on the DEX for q units, sell q into the CEX bids
+cex→dex   spend $size walking the CEX asks for q units, sell q on the DEX
+
+gross  = usd_out / usd_in − 1            (pool fee + both legs' impact already inside)
+cost   = CEX fee + gas / size + rebalance / clips / size
+net    = gross − cost
 ```
 
-### Listeners
-- **Deployment listener** — watches blocks for `CREATE` transactions
-- **Factory listener** — watches Uniswap V2/V3 factory events for new pools
-- **Pool price monitor** — monitors cross-DEX price discrepancies (Base)
+Then three derived views, all rebuildable from the raw books and quotes with `npm run spread:backfill`:
 
-### Detectors
-Two-phase pipeline. Phase 1 (prescreen) does zero RPC calls — bytecode-only selector scanning. Phase 2 (gated) runs RPC-heavy analysis only if prescreen found something interesting or the contract is a new pool.
+- **Board / route stats** — share of ticks a route is net-positive, p50 / p90 / max, current value.
+- **Episodes** — a route "opens" above `SPREAD_EPISODE_OPEN_BPS` and closes with hysteresis; duration tells you whether the window is yours (seconds → bots; minutes → you).
+- **Paper ledger** — when a route clears the threshold, record what the quote promised, re-price the same clip `SPREAD_LATENCY_MS` later, record what you'd have netted. The mean gap is your **latency tax**. Entries whose route vanished before the latency elapsed settle as *unfillable*, not as a fake number.
 
-### Executor
-Dry-run by default. Simulates transactions and logs results. Set `EXECUTOR_LIVE=true` to submit real transactions.
+**The fee tier is the whole game.** Defaults are pessimal retail tiers (Coinbase 40 bps taker, OKX 10). At those numbers the board is red in calm markets — a 5 bps pool fee each side plus 10–40 bps of exchange fee is more than the spread. The firms that run this pay 0–2 bps. Set `SPREAD_TAKER_BPS_*` to your real tier before reading the board as anything other than "what tier would I need". `SPREAD_CEX_EXEC=maker` models resting orders instead (maker fee + adverse-selection haircut, no book impact).
+
+Known simplifications, in order of how much they matter:
+1. Both legs are REST-polled, so they're a few hundred ms apart. Fine for a distribution study at 10s; wrong for execution.
+2. BTC on-chain is cbBTC (Base) / WBTC (Arbitrum) against spot BTC on the CEX — the wrapper basis is inside the "spread". ETH is the clean pair.
+3. The DEX sell quote is taken at `size / CEX mid` and scaled linearly to the qty the ask-walk yields (second-order error).
+4. Inventory carry and your own impact on the next tick are not modelled.
 
 ## Setup
 
 ```bash
-git clone git@github.com:cdrn/backdraft.git
-cd backdraft
+git clone git@github.com:cdrn/backdraft.git && cd backdraft
 npm install
-cp .env.example .env
-# Edit .env with your RPC URLs and config
-npm run dev
+cp .env.example .env     # everything optional; defaults are public endpoints
+npm run dev              # all three modules, tsx watch
 ```
 
-## Feature Flags
+Per module: `npm run spread` / `npm run delta` / `npm run funding` (dev) or `npm run start:<module>` (built). `ENABLE_DELTA|FUNDING|SPREAD=false` drops one from the combined process. Each module keeps its own SQLite DB.
 
-All flags default to `true`. Set to `false` in `.env` to disable.
-
-| Flag | What it controls |
-|------|-----------------|
-| `ENABLE_DEPLOYMENT_LISTENER` | Watch blocks for direct contract deployments |
-| `ENABLE_FACTORY_LISTENER` | Watch DEX factory events for new pools |
-| `ENABLE_VULN_DETECTORS` | Proxy, initializer, withdrawal, ownership detectors |
-| `ENABLE_SNIPER` | Honeypot detection and pool sniping |
-| `ENABLE_EXECUTOR` | Transaction execution (dry-run or live) |
-
-### Cost optimization
-
-Block watching is the dominant RPC cost (~97 CU/s across 3 chains). Arbitrum is the most expensive due to fast block times. To reduce costs, drop chains you don't need and disable the deployment listener to rely only on factory events.
-
-## Chain Configuration
-
-Set WebSocket RPC URLs for the chains you want to monitor. Chains without a URL are skipped.
-
-```
-ETH_RPC_WS=wss://eth-mainnet.g.alchemy.com/v2/YOUR_KEY
-ARB_RPC_WS=wss://arb-mainnet.g.alchemy.com/v2/YOUR_KEY
-BASE_RPC_WS=wss://base-mainnet.g.alchemy.com/v2/YOUR_KEY
+```bash
+npm test                 # node:test via tsx — book walk and spread math
+npm run build            # tsc → dist/
 ```
 
 ## Deployment
 
-Docker Compose with Watchtower for auto-deploy:
-
 ```bash
-docker compose up -d
+docker compose up -d     # seismograph container (3 ports on localhost) + watchtower
 ```
 
-Push to master → CI builds image → Watchtower pulls and restarts automatically.
+Push to master → CI typechecks, tests, builds the image → Watchtower pulls and restarts.
 
-## Project Structure
+## Project structure
 
 ```
 src/
-  config/
-    flags.ts              Feature flag system
-    tokens.ts             Verified token addresses per chain
-  listener/
-    deployment-listener.ts  Block watching for CREATE txs
-    factory-listener.ts     DEX factory event watching
-  detectors/
-    pipeline.ts           Two-phase detector pipeline
-    prescreen-detector.ts Bytecode-only prescreen (0 RPC)
-    proxy-detector.ts     EIP-1967/1167 proxy detection
-    initializer-detector.ts Uninitialized proxy detection
-    open-withdrawal-detector.ts Open withdraw/drain functions
-    ownership-detector.ts Zero-owner / claimable ownership
-    value-detector.ts     ETH + blue-chip ERC20 balance check
-    honeypot-detector.ts  Buy+sell simulation, sniper trap detection
-  executor/
-    index.ts              Transaction builder and submitter
-    strategies/
-      snipe.ts            Uniswap V2 swap execution
-  store/
-    index.ts              SQLite persistence
-  alerts/
-    telegram.ts           Telegram bot alerts
-  index.ts                Entry point (scanner + executor)
-  delta/                  Stablecoin venue-basis seismograph (own entry: delta/main.ts)
-    collector.ts          Polls executable quotes across chains
-    derive/               Spread board, episode detector, paper ledger
-    costs.ts              Per-corridor rebalance cost model
-    backfill.ts           Replays quote history after threshold/cost changes
-  funding/                Perp funding-basis seismograph (own entry: funding/main.ts)
-    collector.ts          Polls cross-venue funding + order books
-    derive/               Funding dispersion + book-impact models
-contracts/                Solidity contracts (Foundry)
+  seismograph.ts         combined entry (delta + funding + spread)
+  delta/                 stablecoin cross-chain basis
+    collector.ts         polls executable quotes across chains
+    quoters/             kyber (EVM), jupiter (Solana), hood-v4 (Robinhood Chain)
+    derive/              spread board, episode detector, paper ledger
+    costs.ts             per-corridor bridge/rebalance cost model
+    mm/dryrun.ts         inventory market-maker decision loop, dry-run
+    backfill.ts          replay raw quotes after threshold/cost changes
+  funding/               perp funding basis
+    venues/              hyperliquid, dydx, okx, paradex, arcus
+    derive/              dispersion, book impact, execution model, paper ledger
+    backtest.ts          historical verdict on cross-venue carry
+  spread/                CEX↔DEX realizable spread
+    config.ts            pairs, chains, sizes, fee tiers (all env-tunable)
+    venues/              coinbase, okx, binance (REST books)
+    quoters/univ3.ts     QuoterV2 via one Multicall3 call per chain
+    costs.ts             CEX fee + gas + rebalance per clip
+    derive/              book walk, cell math, episodes, paper ledger, route stats
+    store.ts             raw books + quotes (source of truth), derived cells
+    backfill.ts          rebuild cells/episodes/paper from raw
+public/<module>/         dashboards, served by each module's HTTP server
 ```
-
-Run the modules independently: `npm run delta` / `npm run funding` (dev), or `npm run start:delta` / `npm run start:funding` (built). Each keeps its own SQLite DB so the dataset stays continuous.

@@ -13,5 +13,5 @@
     "declaration": true
   },
   "include": ["src/**/*"],
-  "exclude": ["contracts/**/*"]
+  "exclude": ["src/**/*.test.ts"]
 }

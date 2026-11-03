@@ -1,32 +1,22 @@
 services:
-  backdraft:
+  # All three seismographs — delta (:4747), funding (:4748), spread (:4749) —
+  # in one process. Each keeps its own SQLite DB under /app/data. No paid
+  # RPC: every data source is a keyless public endpoint.
+  seismograph:
     image: ghcr.io/cdrn/backdraft:latest
-    container_name: backdraft
+    container_name: seismograph
     restart: unless-stopped
     env_file: .env
-    environment:
-      - DB_PATH=/app/data/backdraft.db
-    volumes:
-      - backdraft-data:/app/data
-
-  # Seismographs — delta (stablecoin venue-basis, :4747) + funding
-  # (cross-venue perp funding-basis, :4748) in one process. Same image,
-  # separate container from the scanner/executor so the datasets never gap
-  # while that churns. Both are calm poll loops, so they share a container.
-  delta:
-    image: ghcr.io/cdrn/backdraft:latest
-    container_name: delta
-    restart: unless-stopped
-    env_file: .env
-    command: ["node", "dist/seismograph.js"]
     environment:
       - DELTA_DB_PATH=/app/data/delta.db
       - FUNDING_DB_PATH=/app/data/funding.db
+      - SPREAD_DB_PATH=/app/data/spread.db
     ports:
       - "127.0.0.1:4747:4747"
       - "127.0.0.1:4748:4748"
+      - "127.0.0.1:4749:4749"
     volumes:
-      - delta-data:/app/data
+      - seismograph-data:/app/data
 
   watchtower:
     image: containrrr/watchtower
@@ -36,8 +26,7 @@ services:
       - DOCKER_API_VERSION=1.44
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    command: --interval 60 backdraft delta
+    command: --interval 60 seismograph
 
 volumes:
-  backdraft-data:
-  delta-data:
+  seismograph-data:

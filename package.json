@@ -1,18 +1,22 @@
 {
   "name": "backdraft",
-  "version": "0.1.0",
-  "description": "Real-time contract deployment scanner and MEV searcher",
+  "version": "0.2.0",
+  "description": "Cross-venue dislocation seismographs: stablecoin basis, perp funding basis, CEX↔DEX realizable spread — measured net of cost, paper-traded before acted on",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/seismograph.js",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx watch src/index.ts",
-    "start": "node dist/index.js",
+    "test": "tsx --test src/**/*.test.ts",
+    "dev": "tsx watch src/seismograph.ts",
+    "start": "node dist/seismograph.js",
     "delta": "tsx src/delta/main.ts",
     "delta:backfill": "tsx src/delta/backfill.ts",
     "start:delta": "node dist/delta/main.js",
     "funding": "tsx src/funding/main.ts",
-    "start:funding": "node dist/funding/main.js"
+    "start:funding": "node dist/funding/main.js",
+    "spread": "tsx src/spread/main.ts",
+    "spread:backfill": "tsx src/spread/backfill.ts",
+    "start:spread": "node dist/spread/main.js"
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",
