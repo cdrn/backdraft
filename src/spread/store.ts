@@ -138,12 +138,24 @@ export class Store {
   }
 
   // ---- raw replay ----
+  // Streamed one tick at a time: a day of raw books is hundreds of MB
+  // parsed, and the VPS has 1 GB. Buckets are round(ts / pollMs).
 
-  rawSince(ts: number): { books: Book[]; quotes: DexQuote[] } {
+  tickBuckets(pollMs: number): number[] {
+    return (
+      this.db
+        .prepare(
+          `SELECT DISTINCT CAST(ROUND(CAST(ts AS REAL) / ?) AS INTEGER) AS b FROM dex_quotes ORDER BY b`,
+        )
+        .all(pollMs) as { b: number }[]
+    ).map((r) => r.b);
+  }
+
+  rawBetween(fromTs: number, toTs: number): { books: Book[]; quotes: DexQuote[] } {
     const books = (
       this.db
-        .prepare(`SELECT ts, venue, symbol, bids, asks FROM books WHERE ts >= ? ORDER BY ts`)
-        .all(ts) as { ts: number; venue: string; symbol: string; bids: string; asks: string }[]
+        .prepare(`SELECT ts, venue, symbol, bids, asks FROM books WHERE ts >= ? AND ts < ? ORDER BY ts`)
+        .all(fromTs, toTs) as { ts: number; venue: string; symbol: string; bids: string; asks: string }[]
     ).map((r) => ({
       ts: r.ts,
       venue: r.venue,
@@ -154,9 +166,9 @@ export class Store {
     const quotes = this.db
       .prepare(
         `SELECT ts, chain, dex, pair, dir, amount_in AS amountIn, amount_out AS amountOut, fee_tier AS feeTier
-         FROM dex_quotes WHERE ts >= ? ORDER BY ts`,
+         FROM dex_quotes WHERE ts >= ? AND ts < ? ORDER BY ts`,
       )
-      .all(ts) as DexQuote[];
+      .all(fromTs, toTs) as DexQuote[];
     return { books, quotes };
   }
 

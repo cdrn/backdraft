@@ -27,20 +27,18 @@ store.clearPaperEntries();
 const detector = new EpisodeDetector(store, EPISODE_OPEN_BPS, EPISODE_CLOSE_BPS);
 const paper = new PaperLedger(store, EPISODE_OPEN_BPS, LATENCY_MS, POLL_INTERVAL_MS * 3);
 
-const { books, quotes } = store.rawSince(0);
-const bucket = (ts: number) => Math.round(ts / POLL_INTERVAL_MS);
-const ticks = new Map<number, { books: typeof books; quotes: typeof quotes }>();
-for (const b of books) (ticks.get(bucket(b.ts)) ?? ticks.set(bucket(b.ts), { books: [], quotes: [] }).get(bucket(b.ts))!).books.push(b);
-for (const q of quotes) (ticks.get(bucket(q.ts)) ?? ticks.set(bucket(q.ts), { books: [], quotes: [] }).get(bucket(q.ts))!).quotes.push(q);
-
+// One tick at a time (the raw tables are far bigger than the box's RAM).
+const buckets = store.tickBuckets(POLL_INTERVAL_MS);
 let n = 0;
-for (const [b, t] of [...ticks.entries()].sort((x, y) => x[0] - y[0])) {
+for (const b of buckets) {
   const ts = b * POLL_INTERVAL_MS;
+  const t = store.rawBetween(ts - POLL_INTERVAL_MS / 2, ts + POLL_INTERVAL_MS / 2);
   const cells = computeCells(t.books, t.quotes, PAIRS, SIZES_USD, ts, ROUTE_KINDS);
   store.insertCells(cells);
   detector.update(cells, ts);
   paper.update(cells, ts);
   n++;
+  if (n % 1000 === 0) console.log(`  ${n}/${buckets.length} ticks`);
 }
 
 const ps = store.paperStats();
