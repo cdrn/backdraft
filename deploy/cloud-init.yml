@@ -1,0 +1,22 @@
+#cloud-config
+# Bootstrap a fresh Ubuntu droplet into the backdraft seismograph host.
+#
+#   doctl compute droplet create seismograph --region sfo3 --size s-1vcpu-1gb \
+#     --image ubuntu-24-04-x64 --ssh-keys <id> --user-data-file deploy/cloud-init.yml
+#
+# Then: scp .env root@<ip>:/opt/backdraft/.env && ssh root@<ip> 'cd /opt/backdraft && docker compose up -d'
+# Dashboards bind to localhost only; reach them with
+#   ssh -L 4749:localhost:4749 -L 4747:localhost:4747 -L 4748:localhost:4748 root@<ip>
+package_update: true
+package_upgrade: true
+packages: [ca-certificates, curl, git, ufw, fail2ban, unattended-upgrades]
+runcmd:
+  - curl -fsSL https://get.docker.com | sh
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow OpenSSH
+  - ufw --force enable
+  - systemctl enable --now fail2ban
+  - git clone https://github.com/cdrn/backdraft /opt/backdraft
+  - cp /opt/backdraft/.env.example /opt/backdraft/.env
+  - cd /opt/backdraft && docker compose pull
