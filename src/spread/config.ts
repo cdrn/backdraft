@@ -281,9 +281,13 @@ const ALL_PAIRS: PairConfig[] = [
   },
   // ---- Base mid-caps ----
   {
+    // AERO migrated contracts in Nov 2026 (old 0x9401…8631 "Aerodrome" → new
+    // "Aero", 1:1). CEXes price the new token; the old one kept trading on
+    // chain at a premium with no deposit bridge, which read as a fake +250 bps
+    // episode. Quote the new contract; it has no cells until liquidity moves.
     pair: "AERO",
     tokens: {
-      base: { symbol: "AERO", address: "0x940181a94A35A4569E4529A3CDfB74e38FD98631", decimals: 18 },
+      base: { symbol: "AERO", address: "0x3f5bF3EdAc59d650D8fDf9657a71F2f904A3a4Ee", decimals: 18 },
     },
     cex: { coinbase: "AERO-USD" },
     maxGrossBps: 1000,
