@@ -1,115 +1,114 @@
 import { MAX_GROSS_BPS } from "../config.js";
 import { clipCost } from "../costs.js";
-import type { Book, Cell, DexQuote } from "../types.js";
-import { routeKey } from "../types.js";
+import type { Book, Cell, DexQuote, Kind } from "../types.js";
+import { chainOf, isDexVenue, KINDS, kindOf, routeKey } from "../types.js";
 import { buyFrom, sellInto } from "./book.js";
 
-// Board math. Two directions per (pair, chain, cex, size):
+// Board math. For every pair, every ordered (buy venue, sell venue) pair of
+// venues that both quote it, at every size:
 //
-//   dex→cex  spend `size` USDC on the DEX for q base units, sell q into the
-//            CEX bids. gross = usdOut / size - 1.
-//   cex→dex  spend `size` USD walking the CEX asks for q base units, sell q
-//            on the DEX for USDC. gross = usdcOut / size - 1.
+//   buy leg   spend `size` USD on the buy venue for q base units
+//             CEX: walk the asks.  DEX: the exact-input buy quote at `size`.
+//   sell leg  sell q on the sell venue for USD
+//             CEX: walk the bids.  DEX: the reference sell quote (taken at
+//             size / CEX mid so every quote for a tick fits in one
+//             multicall) scaled linearly to q. The error is second-order
+//             (impact is near-linear over a few bps of qty difference).
 //
-// The DEX sell quote is taken at a reference qty (size / CEX mid at fetch
-// time) so every quote for a tick fits in one multicall; we then scale the
-// output linearly to the qty the ask-walk actually yields. The error is
-// second-order (impact is near-linear over a few bps of qty difference).
+//   gross = usdOut / size - 1
 //
-// Gross is pure price. Costs (CEX fee, gas, rebalance) live in costs.ts and
-// are subtracted here so every cell carries the full decomposition.
+// Gross is pure price. Costs (CEX fee, gas, rebalance, tip) live in costs.ts
+// and are subtracted here so every cell carries the full decomposition.
+// dex→dex is only computed within one chain: cross-chain isn't atomic, it's
+// the inventory trade with a bridge in the middle, and we don't model that.
+
+export interface PairLike {
+  pair: string;
+  cex: Record<string, string>;
+  maxGrossBps?: number;
+}
 
 export function computeCells(
   books: Book[],
   quotes: DexQuote[],
-  pairs: { pair: string; cex: Record<string, string> }[],
+  pairs: PairLike[],
   sizes: number[],
   ts: number,
+  kinds: Kind[] = KINDS,
 ): Cell[] {
   const cells: Cell[] = [];
-  const q = (chain: string, pair: string, dir: "buy" | "sell", amountIn: number) =>
-    quotes.find(
-      (x) =>
-        x.chain === chain &&
-        x.pair === pair &&
-        x.dir === dir &&
-        Math.abs(x.amountIn - amountIn) <= Math.abs(amountIn) * 1e-9,
-    );
-  const sellQuotes = (chain: string, pair: string) =>
-    quotes.filter((x) => x.chain === chain && x.pair === pair && x.dir === "sell");
-  const chains = [...new Set(quotes.map((x) => x.chain))];
+  const want = new Set(kinds);
 
   for (const p of pairs) {
-    for (const book of books) {
-      const sym = p.cex[book.venue];
-      if (!sym || book.symbol !== sym) continue;
-      for (const chain of chains) {
+    const maxGross = p.maxGrossBps ?? MAX_GROSS_BPS;
+    const pbooks = books.filter((b) => p.cex[b.venue] === b.symbol);
+    const pquotes = quotes.filter((x) => x.pair === p.pair);
+    const dexes = [...new Set(pquotes.map((x) => x.dex))];
+    const venues = [...pbooks.map((b) => b.venue), ...dexes];
+
+    // ---- leg helpers ----
+    const buyLeg = (venue: string, size: number): number | null => {
+      if (isDexVenue(venue)) {
+        const q = pquotes.find(
+          (x) => x.dex === venue && x.dir === "buy" && Math.abs(x.amountIn - size) <= size * 1e-9,
+        );
+        return q && q.amountOut > 0 ? q.amountOut : null;
+      }
+      const book = pbooks.find((b) => b.venue === venue)!;
+      return buyFrom(book.asks, size);
+    };
+    const sellLeg = (venue: string, qty: number): number | null => {
+      if (isDexVenue(venue)) {
+        const sq = pquotes
+          .filter((x) => x.dex === venue && x.dir === "sell" && x.amountIn > 0)
+          .reduce<DexQuote | null>(
+            (acc, x) => (!acc || Math.abs(x.amountIn - qty) < Math.abs(acc.amountIn - qty) ? x : acc),
+            null,
+          );
+        return sq ? sq.amountOut * (qty / sq.amountIn) : null;
+      }
+      const book = pbooks.find((b) => b.venue === venue)!;
+      return sellInto(book.bids, qty);
+    };
+
+    for (const buy of venues) {
+      for (const sell of venues) {
+        if (buy === sell) continue;
+        const kind = kindOf(buy, sell);
+        if (!want.has(kind)) continue;
+        if (kind === "dex→dex" && chainOf(buy) !== chainOf(sell)) continue;
         for (const size of sizes) {
-          const cost = clipCost(chain, book.venue, size);
-
-          // ---- dex→cex ----
-          const buy = q(chain, p.pair, "buy", size);
-          if (buy) {
-            const usdOut = sellInto(book.bids, buy.amountOut);
-            if (usdOut !== null) {
-              push(cells, {
-                ts, pair: p.pair, chain, cex: book.venue, dir: "dex→cex", size,
-                dexPx: size / buy.amountOut,
-                cexPx: usdOut / buy.amountOut,
-                grossBps: (usdOut / size - 1) * 10_000,
-                cost,
-              });
-            }
-          }
-
-          // ---- cex→dex ----
-          const qty = buyFrom(book.asks, size);
-          if (qty !== null) {
-            // nearest reference sell quote for this chain/pair by qty
-            const sq = sellQuotes(chain, p.pair).reduce<DexQuote | null>(
-              (acc, x) =>
-                !acc || Math.abs(x.amountIn - qty) < Math.abs(acc.amountIn - qty)
-                  ? x
-                  : acc,
-              null,
-            );
-            if (sq && sq.amountIn > 0) {
-              const usdcOut = sq.amountOut * (qty / sq.amountIn);
-              push(cells, {
-                ts, pair: p.pair, chain, cex: book.venue, dir: "cex→dex", size,
-                dexPx: usdcOut / qty,
-                cexPx: size / qty,
-                grossBps: (usdcOut / size - 1) * 10_000,
-                cost,
-              });
-            }
-          }
+          const qty = buyLeg(buy, size);
+          if (qty === null || !(qty > 0)) continue;
+          const usdOut = sellLeg(sell, qty);
+          if (usdOut === null || !(usdOut > 0)) continue;
+          const grossBps = (usdOut / size - 1) * 10_000;
+          if (!Number.isFinite(grossBps) || Math.abs(grossBps) > maxGross) continue;
+          const cost = clipCost(buy, sell, size);
+          const netBps = grossBps - cost.totalBps;
+          cells.push({
+            ts,
+            pair: p.pair,
+            kind,
+            buy,
+            sell,
+            route: routeKey(p.pair, buy, sell),
+            size,
+            buyPx: size / qty,
+            sellPx: usdOut / qty,
+            grossBps,
+            feeBps: cost.feeBps,
+            gasBps: cost.gasBps,
+            rebalBps: cost.rebalBps,
+            costBps: cost.totalBps,
+            netBps,
+            netUsd: (netBps / 10_000) * size,
+          });
         }
       }
     }
   }
   return cells;
-}
-
-function push(
-  cells: Cell[],
-  c: Omit<Cell, "route" | "feeBps" | "gasBps" | "rebalBps" | "costBps" | "netBps" | "netUsd"> & {
-    cost: ReturnType<typeof clipCost>;
-  },
-): void {
-  if (!Number.isFinite(c.grossBps) || Math.abs(c.grossBps) > MAX_GROSS_BPS) return;
-  const netBps = c.grossBps - c.cost.totalBps;
-  const { cost, ...rest } = c;
-  cells.push({
-    ...rest,
-    route: routeKey(c.pair, c.chain, c.cex, c.dir),
-    feeBps: cost.feeBps,
-    gasBps: cost.gasBps,
-    rebalBps: cost.rebalBps,
-    costBps: cost.totalBps,
-    netBps,
-    netUsd: (netBps / 10_000) * c.size,
-  });
 }
 
 // Best cell per route (by net bps) — the unit the episode detector and paper

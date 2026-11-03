@@ -29,6 +29,7 @@ export class Store {
         id INTEGER PRIMARY KEY,
         ts INTEGER NOT NULL,
         chain TEXT NOT NULL,
+        dex TEXT NOT NULL DEFAULT '',
         pair TEXT NOT NULL,
         dir TEXT NOT NULL,
         amount_in REAL NOT NULL,
@@ -36,17 +37,20 @@ export class Store {
         fee_tier INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_dex_quotes_ts ON dex_quotes(ts);
+    `);
+    this.migrate();
+    this.db.exec(`
       CREATE TABLE IF NOT EXISTS cells (
         id INTEGER PRIMARY KEY,
         ts INTEGER NOT NULL,
         pair TEXT NOT NULL,
-        chain TEXT NOT NULL,
-        cex TEXT NOT NULL,
-        dir TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        buy TEXT NOT NULL,
+        sell TEXT NOT NULL,
         route TEXT NOT NULL,
         size REAL NOT NULL,
-        dex_px REAL NOT NULL,
-        cex_px REAL NOT NULL,
+        buy_px REAL NOT NULL,
+        sell_px REAL NOT NULL,
         gross_bps REAL NOT NULL,
         fee_bps REAL NOT NULL,
         gas_bps REAL NOT NULL,
@@ -85,15 +89,33 @@ export class Store {
       `INSERT INTO books (ts, venue, symbol, bids, asks) VALUES (?, ?, ?, ?, ?)`,
     );
     this.insQuote = this.db.prepare(
-      `INSERT INTO dex_quotes (ts, chain, pair, dir, amount_in, amount_out, fee_tier)
-       VALUES (@ts, @chain, @pair, @dir, @amountIn, @amountOut, @feeTier)`,
+      `INSERT INTO dex_quotes (ts, chain, dex, pair, dir, amount_in, amount_out, fee_tier)
+       VALUES (@ts, @chain, @dex, @pair, @dir, @amountIn, @amountOut, @feeTier)`,
     );
     this.insCell = this.db.prepare(
-      `INSERT INTO cells (ts, pair, chain, cex, dir, route, size, dex_px, cex_px,
+      `INSERT INTO cells (ts, pair, kind, buy, sell, route, size, buy_px, sell_px,
          gross_bps, fee_bps, gas_bps, rebal_bps, cost_bps, net_bps, net_usd)
-       VALUES (@ts, @pair, @chain, @cex, @dir, @route, @size, @dexPx, @cexPx,
+       VALUES (@ts, @pair, @kind, @buy, @sell, @route, @size, @buyPx, @sellPx,
          @grossBps, @feeBps, @gasBps, @rebalBps, @costBps, @netBps, @netUsd)`,
     );
+  }
+
+  // Schema v1 (2026-11-02) had chain/cex/dir cells and no `dex` on quotes.
+  // Raw tables are the source of truth, so: add the column, tag old quotes
+  // as Uniswap (the only DEX v1 quoted), and drop every derived table —
+  // routes are keyed differently now. `npm run spread:backfill` rebuilds.
+  private migrate(): void {
+    const cols = (t: string) =>
+      (this.db.prepare(`PRAGMA table_info(${t})`).all() as { name: string }[]).map((c) => c.name);
+    if (!cols("dex_quotes").includes("dex")) {
+      this.db.exec(`ALTER TABLE dex_quotes ADD COLUMN dex TEXT NOT NULL DEFAULT ''`);
+    }
+    this.db.exec(`UPDATE dex_quotes SET dex = chain || '/uni' WHERE dex = ''`);
+    const cellCols = cols("cells");
+    if (cellCols.length && !cellCols.includes("kind")) {
+      console.warn("[spread:store] v1 cells schema found — dropping derived tables; run spread:backfill");
+      this.db.exec(`DROP TABLE cells; DROP TABLE IF EXISTS episodes; DROP TABLE IF EXISTS paper_entries;`);
+    }
   }
 
   insertTick(books: Book[], quotes: DexQuote[], cells: Cell[]): void {
@@ -131,7 +153,7 @@ export class Store {
     }));
     const quotes = this.db
       .prepare(
-        `SELECT ts, chain, pair, dir, amount_in AS amountIn, amount_out AS amountOut, fee_tier AS feeTier
+        `SELECT ts, chain, dex, pair, dir, amount_in AS amountIn, amount_out AS amountOut, fee_tier AS feeTier
          FROM dex_quotes WHERE ts >= ? ORDER BY ts`,
       )
       .all(ts) as DexQuote[];
@@ -144,13 +166,13 @@ export class Store {
     return {
       ts: r.ts as number,
       pair: r.pair as string,
-      chain: r.chain as string,
-      cex: r.cex as string,
-      dir: r.dir as Cell["dir"],
+      kind: r.kind as Cell["kind"],
+      buy: r.buy as string,
+      sell: r.sell as string,
       route: r.route as string,
       size: r.size as number,
-      dexPx: r.dex_px as number,
-      cexPx: r.cex_px as number,
+      buyPx: r.buy_px as number,
+      sellPx: r.sell_px as number,
       grossBps: r.gross_bps as number,
       feeBps: r.fee_bps as number,
       gasBps: r.gas_bps as number,

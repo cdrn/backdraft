@@ -2,25 +2,28 @@ import { SpreadAlert } from "./alerts.js";
 import {
   CEX_VENUES,
   CHAINS,
+  DEXES,
   EPISODE_CLOSE_BPS,
   EPISODE_OPEN_BPS,
   LATENCY_MS,
   PAIRS,
   POLL_INTERVAL_MS,
+  ROUTE_KINDS,
   SIZES_USD,
 } from "./config.js";
 import { mid } from "./derive/book.js";
 import { EpisodeDetector } from "./derive/episodes.js";
 import { PaperLedger } from "./derive/paper.js";
 import { bestPerRoute, computeCells } from "./derive/spreads.js";
-import { UniV3Quoter, type QuoteRequest } from "./quoters/univ3.js";
+import { ChainQuoter, type QuoteRequest } from "./quoters/evm.js";
 import type { Store } from "./store.js";
 import { buildVenues } from "./venues/index.js";
 import type { Book, DexQuote } from "./types.js";
 
 // Tick order matters: CEX books first (fast, give us the reference mid), then
-// one multicall per chain sized off those mids, then the board. Both legs of
-// every cell are within a few hundred ms of each other at the 10s cadence.
+// one chunked multicall per chain sized off those mids, then the board. Both
+// legs of every cell are within a few hundred ms of each other at the 10s
+// cadence.
 
 export interface VenueHealth {
   name: string;
@@ -29,13 +32,17 @@ export interface VenueHealth {
   lastOkTs: number | null;
 }
 
+const REDISCOVER_MS = 60 * 60_000;
+
 export class Collector {
   private venues = buildVenues(CEX_VENUES);
-  private quoters = CHAINS.map((c) => new UniV3Quoter(c, PAIRS));
+  private quoters = CHAINS.map((c) => new ChainQuoter(c, DEXES, PAIRS)).filter((q) => q.dexes.length);
   private alert = new SpreadAlert();
   private detector: EpisodeDetector;
   private paper: PaperLedger;
   readonly health = new Map<string, VenueHealth>();
+  // quotes per DEX on the last tick — the dashboard's "is this DEX alive"
+  readonly dexQuoteCounts = new Map<string, number>();
   private running = false;
   private startedAt = 0;
 
@@ -47,9 +54,11 @@ export class Collector {
     this.paper = new PaperLedger(store, EPISODE_OPEN_BPS, LATENCY_MS, POLL_INTERVAL_MS * 3);
     for (const v of this.venues) this.health.set(v.name, { name: v.name, ok: false, lastError: null, lastOkTs: null });
     for (const q of this.quoters) this.health.set(q.chain, { name: q.chain, ok: false, lastError: null, lastOkTs: null });
+    for (const d of DEXES) this.dexQuoteCounts.set(d.id, 0);
     console.log(
-      `[spread] venues: ${this.venues.map((v) => v.name).join(",")}  chains: ${CHAINS.map((c) => c.name).join(",")}  ` +
-        `sizes: ${SIZES_USD.join("/")}  poll ${POLL_INTERVAL_MS / 1000}s  latency ${LATENCY_MS / 1000}s  telegram ${this.alert.enabled ? "armed" : "off"}`,
+      `[spread] venues: ${this.venues.map((v) => v.name).join(",")}  dexes: ${DEXES.map((d) => d.id).join(",")}  ` +
+        `pairs: ${PAIRS.map((p) => p.pair).join(",")}  kinds: ${ROUTE_KINDS.join(",")}  sizes: ${SIZES_USD.join("/")}  ` +
+        `poll ${POLL_INTERVAL_MS / 1000}s  latency ${LATENCY_MS / 1000}s  telegram ${this.alert.enabled ? "armed" : "off"}`,
     );
   }
 
@@ -91,6 +100,20 @@ export class Collector {
     return books;
   }
 
+  // Pools are discovered lazily and refreshed hourly; a failed discovery
+  // just means we keep quoting every tier until the next one succeeds.
+  private async maybeDiscover(): Promise<void> {
+    const due = this.quoters.filter((q) => Date.now() - q.discoveredAt > REDISCOVER_MS);
+    if (!due.length) return;
+    const probeSizes = [...new Set([Math.min(...SIZES_USD), Math.max(...SIZES_USD)])];
+    const results = await Promise.allSettled(due.map((q) => q.discover(probeSizes)));
+    results.forEach((r, i) => {
+      const q = due[i];
+      if (r.status === "fulfilled") console.log(`[spread] ${q.chain} pools: ${q.liveSummary() || "none"}`);
+      else console.warn(`[spread] ${q.chain} discovery failed: ${r.reason instanceof Error ? r.reason.message : r.reason}`);
+    });
+  }
+
   private async fetchQuotes(books: Book[]): Promise<DexQuote[]> {
     // reference mid per pair = mean of venue mids
     const refMid = new Map<string, number>();
@@ -121,6 +144,8 @@ export class Collector {
         this.mark(name, r.value.length ? null : new Error("no quotes returned"));
       } else this.mark(name, r.reason);
     });
+    for (const k of this.dexQuoteCounts.keys()) this.dexQuoteCounts.set(k, 0);
+    for (const q of quotes) this.dexQuoteCounts.set(q.dex, (this.dexQuoteCounts.get(q.dex) ?? 0) + 1);
     return quotes;
   }
 
@@ -133,10 +158,11 @@ export class Collector {
     this.running = true;
     this.startedAt = Date.now();
     try {
+      await this.maybeDiscover();
       const books = await this.fetchBooks();
       const quotes = await this.fetchQuotes(books);
       const ts = Date.now();
-      const cells = computeCells(books, quotes, PAIRS, SIZES_USD, ts);
+      const cells = computeCells(books, quotes, PAIRS, SIZES_USD, ts, ROUTE_KINDS);
       this.store.insertTick(books, quotes, cells);
       this.detector.update(cells, ts);
       this.paper.update(cells, ts);

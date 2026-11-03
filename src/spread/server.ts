@@ -6,11 +6,13 @@ import {
   CEX_EXEC,
   CEX_VENUES,
   CHAIN_NAMES,
+  DEXES,
   EPISODE_OPEN_BPS,
   LATENCY_MS,
   POLL_INTERVAL_MS,
   PORT,
   PUBLIC_DIR,
+  ROUTE_KINDS,
   SIZES_USD,
 } from "./config.js";
 import { cexFeeBps } from "./costs.js";
@@ -49,6 +51,8 @@ export function startServer(store: Store, collector?: Collector): void {
         latencyMs: LATENCY_MS,
         sizes: SIZES_USD,
         chains: CHAIN_NAMES,
+        kinds: ROUTE_KINDS,
+        dexes: DEXES.map((d) => ({ id: d.id, label: d.label, quotes: collector?.dexQuoteCounts.get(d.id) ?? 0 })),
         cex: CEX_VENUES.map((v) => ({ name: v, feeBps: cexFeeBps(v) })),
         exec: CEX_EXEC,
         openBps: EPISODE_OPEN_BPS,

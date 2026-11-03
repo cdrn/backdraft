@@ -12,6 +12,7 @@ import {
   LATENCY_MS,
   PAIRS,
   POLL_INTERVAL_MS,
+  ROUTE_KINDS,
   SIZES_USD,
 } from "./config.js";
 import { EpisodeDetector } from "./derive/episodes.js";
@@ -35,7 +36,7 @@ for (const q of quotes) (ticks.get(bucket(q.ts)) ?? ticks.set(bucket(q.ts), { bo
 let n = 0;
 for (const [b, t] of [...ticks.entries()].sort((x, y) => x[0] - y[0])) {
   const ts = b * POLL_INTERVAL_MS;
-  const cells = computeCells(t.books, t.quotes, PAIRS, SIZES_USD, ts);
+  const cells = computeCells(t.books, t.quotes, PAIRS, SIZES_USD, ts, ROUTE_KINDS);
   store.insertCells(cells);
   detector.update(cells, ts);
   paper.update(cells, ts);

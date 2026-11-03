@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Spread · CEX↔DEX realizable spread</title>
+<title>Spread · cross-venue realizable spread</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -58,6 +58,9 @@
   table.lst tbody tr:last-child td { border-bottom:none; }
   table.lst tbody tr:hover { background:var(--panel-2); }
   .big { font-size:14px; font-weight:700; }
+  .kind { font-family:"Archivo",sans-serif; font-size:9px; padding:2px 6px; border-radius:4px; border:1px solid var(--edge); color:var(--dim); text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap; }
+  .kind.atomic { color:var(--green); border-color:rgba(46,204,143,0.35); }
+  .pill.dex::before { background:#4d8df6; }
   .live-pill { font-family:"Archivo",sans-serif; font-size:8.5px; padding:2px 7px; border-radius:5px; background:rgba(46,204,143,0.15); color:var(--green); text-transform:uppercase; letter-spacing:0.06em; margin-left:6px; }
   .bar { display:inline-block; height:6px; border-radius:3px; background:var(--green); vertical-align:middle; margin-right:6px; opacity:.8; }
   canvas { display:block; width:100%; cursor:crosshair; }
@@ -79,11 +82,11 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="brand"><h1>SPREAD</h1><span class="tag">CEX ↔ DEX realizable spread</span></div>
+    <div class="brand"><h1>SPREAD</h1><span class="tag">cross-venue realizable spread</span></div>
     <div class="status" id="health"></div>
   </header>
   <div class="explainer">
-    The same asset trades on a centralized exchange and on an on-chain pool at slightly different prices. This watches both and asks: after the <b>exchange fee</b>, <b>gas</b>, <b>pool fee</b>, <b>book impact</b> and <b>rebalance</b>, is there anything left — and does it survive landing <b id="lat">one tick</b> late? <b>bps</b> = hundredths of a percent. Fee tier in use: <span id="fees"></span>.
+    The same asset trades on centralized exchanges and on-chain pools at slightly different prices. This watches all of them and asks, for every buy-here-sell-there pair of venues: after the <b>exchange fee</b>, <b>gas</b>, <b>pool fee</b>, <b>book impact</b> and <b>rebalance</b>, is there anything left — and does it survive landing <b id="lat">one tick</b> late? <b>dex→dex</b> on one chain is atomic (one transaction, no inventory); the other kinds carry inventory between venues. <b>bps</b> = hundredths of a percent. Fee tier in use: <span id="fees"></span>.
   </div>
 
   <div class="panel hero">
@@ -104,6 +107,10 @@
     <div class="seg" id="seg-size"></div>
     <span class="lbl">window</span>
     <div class="seg" id="seg-days"><button data-v="1">24h</button><button data-v="7" class="on">7d</button><button data-v="30">30d</button></div>
+    <span class="lbl">kind</span>
+    <div class="seg" id="seg-kind"><button data-v="all" class="on">all</button><button data-v="dex→cex">dex→cex</button><button data-v="cex→dex">cex→dex</button><button data-v="dex→dex">dex→dex</button><button data-v="cex→cex">cex→cex</button></div>
+    <span class="lbl">pair</span>
+    <div class="seg" id="seg-pair"><button data-v="all" class="on">all</button></div>
   </div>
 
   <div class="sec">Does the edge survive the lag? <span class="sub2">paper ledger · quote vs re-price after your latency</span></div>
@@ -112,7 +119,7 @@
   <div class="sec">Routes <span class="sub2">how often each one pays, and how fat the tail is</span></div>
   <div class="panel tbl" style="margin-bottom:14px;">
     <table class="lst" id="routes"><thead><tr>
-      <th>Route</th><th>Net now</th><th>Ticks &gt; 0</th><th>p50</th><th>p90</th><th>Max</th><th>Episodes</th><th>Median dur.</th>
+      <th>Route</th><th>Kind</th><th>Net now</th><th>Ticks &gt; 0</th><th>p50</th><th>p90</th><th>Max</th><th>Episodes</th><th>Median dur.</th>
     </tr></thead><tbody></tbody></table>
     <div class="note"><b>Ticks &gt; 0</b> is the share of polls where the route was net-positive at this size. A route is interesting when that share is non-trivial <i>and</i> episodes last longer than your latency. <b>Episodes</b> open above the alert threshold and close with hysteresis.</div>
   </div>
@@ -128,7 +135,7 @@
     <table class="lst" id="episodes"><thead><tr><th>Route</th><th>Opened</th><th>Lasted</th><th>Peak</th><th>Best size</th><th>$/clip</th></tr></thead><tbody></tbody></table>
   </div>
 
-  <footer><span>backdraft · spread — CEX↔DEX instrument</span><span id="updated"></span></footer>
+  <footer><span>backdraft · spread — cross-venue instrument</span><span id="updated"></span></footer>
 </div>
 <div id="tooltip"></div>
 
@@ -140,8 +147,14 @@ const fmtSize = (s) => s>=1e6 ? "$"+s/1e6+"M" : "$"+s/1e3+"k";
 const fmtUsd = (v) => (v==null) ? "—" : (v>=0?"$":"−$")+Math.abs(v).toFixed(2);
 const fmtDur = (s) => s==null ? "—" : s>=3600 ? (s/3600).toFixed(1)+"h" : s>=120 ? Math.round(s/60)+"m" : Math.round(s)+"s";
 const cap = (s) => s.charAt(0).toUpperCase()+s.slice(1);
-const prettyRoute = (r) => { const sp=r.indexOf(" "); const pair=r.slice(0,sp); const [a,b]=r.slice(sp+1).split("→"); return `${pair} · ${cap(a)} → ${cap(b)}`; };
-let state = { size:null, days:7, status:null, openBps:5 };
+const DEX_LABEL = {uni:"Uni v3",aero:"Aerodrome",pcs:"Pancake",v4:"Uni v4",camelot:"Camelot",sushi:"Sushi"};
+const venueName = (v) => { if (!v.includes("/")) return cap(v); const [chain,dex]=v.split("/"); return `${cap(chain)} ${DEX_LABEL[dex]||dex}`; };
+const splitRoute = (r) => { const sp=r.indexOf(" "); const [buy,sell]=r.slice(sp+1).split("→"); return {pair:r.slice(0,sp),buy,sell}; };
+const prettyRoute = (r) => { const {pair,buy,sell}=splitRoute(r); return `${pair} · ${venueName(buy)} → ${venueName(sell)}`; };
+const kindOfRoute = (r) => { const {buy,sell}=splitRoute(r); const b=buy.includes("/"), s=sell.includes("/"); return b&&s?"dex→dex":b?"dex→cex":s?"cex→dex":"cex→cex"; };
+const kindTag = (k) => `<span class="kind ${k==="dex→dex"?"atomic":""}">${k}${k==="dex→dex"?" · atomic":""}</span>`;
+let state = { size:null, days:7, kind:"all", pair:"all", status:null, openBps:5 };
+const routeOk = (r) => (state.kind==="all"||kindOfRoute(r)===state.kind) && (state.pair==="all"||splitRoute(r).pair===state.pair);
 
 function heat(bps) { if (bps==null) return "dim"; if (bps>=state.openBps) return "pos big"; if (bps>0) return "pos"; return "neg"; }
 
@@ -149,28 +162,34 @@ function renderStatus(s) {
   state.status=s; state.openBps=s.openBps;
   document.getElementById("lat").textContent = (s.latencyMs/1000)+"s";
   document.getElementById("fees").textContent = s.cex.map(c=>`${c.name} ${c.feeBps}bps ${s.exec}`).join(" · ");
-  document.getElementById("health").innerHTML = s.health.map(h=>`<span class="pill ${h.ok?"":"bad"}" title="${h.lastError||"ok"}">${h.name}</span>`).join("") + `<span>poll ${Math.round(s.pollIntervalMs/1000)}s</span>`;
+  document.getElementById("health").innerHTML = s.health.map(h=>`<span class="pill ${h.ok?"":"bad"}" title="${h.lastError||"ok"}">${h.name}</span>`).join("")
+    + (s.dexes||[]).map(d=>`<span class="pill dex ${d.quotes?"":"bad"}" title="${d.label} · ${d.quotes} quotes last tick">${d.id}</span>`).join("")
+    + `<span>poll ${Math.round(s.pollIntervalMs/1000)}s</span>`;
   const seg=document.getElementById("seg-size");
   if (!seg.children.length) { seg.innerHTML = s.sizes.map((v,i)=>`<button data-v="${v}" class="${i===0?"on":""}">${fmtSize(v)}</button>`).join(""); if (state.size==null) state.size=s.sizes[0]; }
 }
 
 function renderHero(board) {
-  let best=null; for (const c of board) { if (c.size!==state.size) continue; if (!best||c.netBps>best.netBps) best=c; }
+  const pairSeg=document.getElementById("seg-pair");
+  const pairs=[...new Set(board.map(c=>c.pair))].sort();
+  if (pairSeg.children.length!==pairs.length+1) pairSeg.innerHTML=`<button data-v="all" class="${state.pair==="all"?"on":""}">all</button>`+pairs.map(p=>`<button data-v="${p}" class="${state.pair===p?"on":""}">${p}</button>`).join("");
+  let best=null; for (const c of board) { if (c.size!==state.size||!routeOk(c.route)) continue; if (!best||c.netBps>best.netBps) best=c; }
   const a=document.getElementById("hero-action"), v=document.getElementById("hero-via"), bps=document.getElementById("hero-bps"), usd=document.getElementById("hero-usd");
   if (!best) { a.textContent="no data yet"; v.textContent=""; bps.textContent="—"; usd.textContent=""; return; }
-  const [from,to] = best.route.slice(best.route.indexOf(" ")+1).split("→");
-  a.innerHTML = `Buy <span class="buy">${best.pair} on ${cap(from)}</span><br>→ sell on <span class="sell">${cap(to)}</span>`;
-  v.innerHTML = `dex ${best.dexPx.toFixed(2)} · cex ${best.cexPx.toFixed(2)} · gross ${fmtBps(best.grossBps)} bps<br>cost ${best.costBps.toFixed(1)} bps = fee ${best.feeBps.toFixed(1)} + gas ${best.gasBps.toFixed(2)} + rebalance ${best.rebalBps.toFixed(2)}`;
+  const px=(x)=>x>=100?x.toFixed(2):x>=1?x.toFixed(4):x.toPrecision(4);
+  a.innerHTML = `Buy <span class="buy">${best.pair} on ${venueName(best.buy)}</span><br>→ sell on <span class="sell">${venueName(best.sell)}</span> ${kindTag(best.kind)}`;
+  v.innerHTML = `buy ${px(best.buyPx)} · sell ${px(best.sellPx)} · gross ${fmtBps(best.grossBps)} bps<br>cost ${best.costBps.toFixed(1)} bps = fee ${best.feeBps.toFixed(1)} + gas ${best.gasBps.toFixed(2)} + rebalance ${best.rebalBps.toFixed(2)}`;
   bps.textContent = fmtBps(best.netBps); bps.className = "bignum "+(best.netBps>0?"pos":"neg");
   usd.innerHTML = `<b>${fmtUsd(best.netUsd)}</b> on one ${fmtSize(state.size)} clip`;
 }
 
 function renderRoutes(stats) {
-  const rows=[...stats].sort((a,b)=>(b.currentNetBps??-1e9)-(a.currentNetBps??-1e9));
+  const rows=[...stats].filter(r=>routeOk(r.route)).sort((a,b)=>(b.currentNetBps??-1e9)-(a.currentNetBps??-1e9));
   const tb=document.querySelector("#routes tbody");
-  if (!rows.length){ tb.innerHTML=`<tr><td colspan="8" class="dim" style="text-align:center;padding:20px">collecting…</td></tr>`; return; }
+  if (!rows.length){ tb.innerHTML=`<tr><td colspan="9" class="dim" style="text-align:center;padding:20px">collecting…</td></tr>`; return; }
   tb.innerHTML=rows.map(r=>`<tr>
     <td>${prettyRoute(r.route)}${r.openNow?'<span class="live-pill">live</span>':""}</td>
+    <td>${kindTag(r.kind||kindOfRoute(r.route))}</td>
     <td class="${heat(r.currentNetBps)}">${fmtBps(r.currentNetBps)}</td>
     <td><span class="bar" style="width:${Math.round(r.positiveShare*60)}px"></span>${(r.positiveShare*100).toFixed(1)}%</td>
     <td class="${r.p50Bps>0?"pos":"dim"}">${fmtBps(r.p50Bps)}</td>
@@ -191,8 +210,8 @@ function renderPaper(p) {
 function renderEpisodes(eps) {
   const tb=document.querySelector("#episodes tbody");
   if (!eps.length){ tb.innerHTML=`<tr><td colspan="6" class="dim" style="text-align:center;padding:20px">none yet — nothing has cleared +${state.openBps} bps net</td></tr>`; return; }
-  tb.innerHTML=eps.slice(0,25).map(e=>`<tr>
-    <td>${prettyRoute(e.route)}${e.closedTs?"":'<span class="live-pill">live</span>'}</td>
+  tb.innerHTML=eps.filter(e=>routeOk(e.route)).slice(0,25).map(e=>`<tr>
+    <td>${prettyRoute(e.route)} ${kindTag(kindOfRoute(e.route))}${e.closedTs?"":'<span class="live-pill">live</span>'}</td>
     <td>${new Date(e.openedTs).toLocaleString()}</td>
     <td>${fmtDur(((e.closedTs??e.lastTs)-e.openedTs)/1000)}</td>
     <td class="pos">${fmtBps(e.peakBps)}</td><td>${fmtSize(e.peakSize)}</td><td>${fmtUsd(e.peakUsd)}</td></tr>`).join("");
@@ -219,7 +238,7 @@ function lineChart(canvas, series, opts={}) {
   return {x0,x1,y0,y1,t0,now};
 }
 function renderNet(series) {
-  const entries=Object.entries(series).map(([r,pts])=>({r,pts:pts.map(p=>({t:p.ts,v:p.netBps})),last:pts.length?pts.at(-1).netBps:-1e9})).sort((a,b)=>b.last-a.last).slice(0,6);
+  const entries=Object.entries(series).filter(([r])=>routeOk(r)).map(([r,pts])=>({r,pts:pts.map(p=>({t:p.ts,v:p.netBps})),last:pts.length?pts.at(-1).netBps:-1e9})).sort((a,b)=>b.last-a.last).slice(0,6);
   netSeries=entries.map((e,i)=>({route:e.r,points:e.pts,color:COLORS[i%COLORS.length]}));
   drawNet();
   document.getElementById("chart-legend").innerHTML=entries.map((e,i)=>`<span class="it"><span class="sw" style="background:${COLORS[i%COLORS.length]}"></span>${prettyRoute(e.r)} <span class="v">${fmtBps(e.last)}</span></span>`).join("");
@@ -249,7 +268,8 @@ async function refresh(){ try{
   document.getElementById("updated").textContent="updated "+new Date().toLocaleTimeString()+" · "+status.ticks24h+" ticks / 24h";
 }catch(e){ document.getElementById("updated").textContent="signal lost"; } }
 
-for (const id of ["seg-size","seg-days"]) document.getElementById(id).addEventListener("click",(e)=>{const b=e.target.closest("button");if(!b)return;for(const x of b.parentElement.children)x.classList.remove("on");b.classList.add("on");if(id==="seg-size")state.size=Number(b.dataset.v);else state.days=Number(b.dataset.v);refresh();});
+for (const id of ["seg-size","seg-days","seg-kind","seg-pair"]) document.getElementById(id).addEventListener("click",(e)=>{const b=e.target.closest("button");if(!b)return;for(const x of b.parentElement.children)x.classList.remove("on");b.classList.add("on");
+  if(id==="seg-size")state.size=Number(b.dataset.v);else if(id==="seg-days")state.days=Number(b.dataset.v);else if(id==="seg-kind")state.kind=b.dataset.v;else state.pair=b.dataset.v;refresh();});
 window.addEventListener("resize",()=>drawNet());
 refresh(); setInterval(refresh,15000);
 </script>

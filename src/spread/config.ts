@@ -1,12 +1,20 @@
-// Spread — CEX↔DEX realizable-spread logger.
+// Spread — cross-venue realizable-spread logger.
 //
 // The question this module answers: at MY latency tier, with MY fee tier, how
-// often is the CEX↔DEX spread on a liquid pair positive after every cost, for
-// how long, and how much of it survives the lag between seeing it and landing
-// it? Everything is env-tunable because the honest answer depends on the
+// often is the spread between two venues on the same asset positive after
+// every cost, for how long, and how much of it survives the lag between
+// seeing it and landing it? Four kinds of route:
+//
+//   dex→cex / cex→dex   the CEX↔DEX inventory trade
+//   dex→dex             same-chain, atomic (one tx, no inventory, no latency
+//                       tax beyond the block) — the searcher's trade
+//   cex→cex             two CEX books, a control for where the edge lives
+//
+// Everything is env-tunable because the honest answer depends on the
 // operator's exchange fee tier and node placement, not on the market.
 
 import { arbitrum, base, type Chain } from "viem/chains";
+import { KINDS, type Kind } from "./types.js";
 
 export const DB_PATH = process.env.SPREAD_DB_PATH ?? "spread.db";
 export const PORT = Number(process.env.SPREAD_PORT ?? 4750);
@@ -28,12 +36,19 @@ export const SIZES_USD: number[] = (process.env.SPREAD_SIZES ?? "5000,25000,1000
   .map(Number)
   .filter((n) => n > 0);
 
+// Which route kinds to compute. Default all four.
+export const ROUTE_KINDS: Kind[] = (process.env.SPREAD_KINDS ?? KINDS.join(","))
+  .split(",")
+  .map((s) => s.trim() as Kind)
+  .filter((k) => KINDS.includes(k));
+
 // Episode hysteresis (net bps after costs).
 export const EPISODE_OPEN_BPS = Number(process.env.SPREAD_EPISODE_OPEN_BPS ?? 5);
 export const EPISODE_CLOSE_BPS = Number(process.env.SPREAD_EPISODE_CLOSE_BPS ?? 1);
 
-// Sanity bound. A liquid-pair CEX↔DEX round trip showing more than this gross
-// is a broken quote (stale book, empty tier), not a dislocation.
+// Sanity bound. A liquid-pair round trip showing more than this gross is a
+// broken quote (stale book, empty tier), not a dislocation. Mid-caps on thin
+// pools can legitimately show more, so it's per-pair overridable below.
 export const MAX_GROSS_BPS = Number(process.env.SPREAD_MAX_GROSS_BPS ?? 300);
 
 // ---- CEX side ----
@@ -78,100 +93,273 @@ export interface ChainConfig {
   name: string;
   chain: Chain; // viem chain (for Multicall3 address)
   rpcUrl: string;
-  quoterV2: `0x${string}`;
-  feeTiers: number[];
   usdc: EvmToken;
   gasUsdPerSwap: number; // conservative, editable
+  // Calldata bytes per Multicall3 chunk. Public RPCs cap eth_call gas and a
+  // deep-pool quote is 100k–1M gas; Arbitrum's cap bites at ~10 quotes.
+  multicallBatchBytes: number;
 }
 
-// Quoting goes through Uniswap V3 QuoterV2 on keyless public RPCs. Every
-// (pair × direction × size × tier) quote for a chain is packed into ONE
-// Multicall3 eth_call per tick, so the RPC load is one request per chain
-// per tick regardless of how many sizes we track.
+// Quoter flavours we know how to call. All four return amountOut as the
+// first word and revert-and-catch internally, so a failed tier is just a
+// failed multicall slot, never a failed tick.
+//   univ3       Uniswap V3 QuoterV2 ABI (also PancakeSwap V3, Sushi V3)
+//   slipstream  Aerodrome/Velodrome CL — QuoterV2 with int24 tickSpacing
+//   algebra     Camelot V3 — single pool per pair, no tier
+//   univ4       Uniswap V4 Quoter — PoolKey (fee, tickSpacing), native ETH
+export type QuoterKind = "univ3" | "slipstream" | "algebra" | "univ4";
+
+export interface DexConfig {
+  id: string; // "<chain>/<dex>" — the venue id in routes
+  chain: string;
+  label: string;
+  kind: QuoterKind;
+  quoter: `0x${string}`;
+  tiers: number[]; // fee tiers / tick spacings to try; algebra ignores
+}
+
+// Quoting goes through each DEX's quoter contract on keyless public RPCs.
+// Every (dex × pair × direction × size × live tier) quote for a chain is
+// packed into Multicall3 eth_calls, chunked so one call stays well under the
+// public RPC gas cap. Tiers are discovered at startup (and hourly) so dead
+// tiers cost nothing per tick.
 export const CHAINS: ChainConfig[] = [
   {
     name: "base",
     chain: base,
     rpcUrl: process.env.BASE_RPC_URL ?? "https://mainnet.base.org",
-    quoterV2: "0x3d4e44Eb1374240CE5F1B871ab261CD16335B76a",
-    feeTiers: [500, 3000, 100],
     usdc: {
       symbol: "USDC",
       address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
       decimals: 6,
     },
     gasUsdPerSwap: Number(process.env.SPREAD_GAS_USD_BASE ?? 0.05),
+    multicallBatchBytes: 4096,
   },
   {
     name: "arbitrum",
     chain: arbitrum,
     rpcUrl: process.env.ARB_RPC_URL ?? "https://arb1.arbitrum.io/rpc",
-    quoterV2: "0x61fFE014bA17989E743c5F6cB21bF9697530B21e",
-    feeTiers: [500, 3000, 100],
     usdc: {
       symbol: "USDC",
       address: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
       decimals: 6,
     },
     gasUsdPerSwap: Number(process.env.SPREAD_GAS_USD_ARBITRUM ?? 0.05),
+    multicallBatchBytes: 1024,
   },
 ];
+
+// Quoter addresses verified 2026-11-02 by calling each with 1 WETH→USDC and
+// checking the price against Uniswap V3 (see git log). They must be EIP-55
+// checksummed: viem rejects a mixed-case address with a wrong checksum
+// (cast doesn't, so a cast-verified address can still fail here). Uniswap
+// V4 quotes native ETH (currency 0x0), handled in the quoter.
+const ALL_DEXES: DexConfig[] = [
+  // ---- Base ----
+  {
+    id: "base/uni",
+    chain: "base",
+    label: "Uniswap V3",
+    kind: "univ3",
+    quoter: "0x3d4e44Eb1374240CE5F1B871ab261CD16335B76a",
+    tiers: [100, 500, 3000, 10000],
+  },
+  {
+    id: "base/aero",
+    chain: "base",
+    label: "Aerodrome CL",
+    kind: "slipstream",
+    quoter: "0x254cF9E1E6e233aa1AC962CB9B05b2cfeAaE15b0",
+    tiers: [1, 50, 100, 200, 2000],
+  },
+  {
+    id: "base/pcs",
+    chain: "base",
+    label: "PancakeSwap V3",
+    kind: "univ3",
+    quoter: "0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997",
+    tiers: [100, 500, 2500, 10000],
+  },
+  {
+    id: "base/v4",
+    chain: "base",
+    label: "Uniswap V4",
+    kind: "univ4",
+    quoter: "0x0d5e0F971ED27FBfF6c2837bf31316121532048D",
+    tiers: [100, 500, 3000, 10000], // tickSpacing derived in the quoter
+  },
+  // ---- Arbitrum ----
+  {
+    id: "arbitrum/uni",
+    chain: "arbitrum",
+    label: "Uniswap V3",
+    kind: "univ3",
+    quoter: "0x61fFE014bA17989E743c5F6cB21bF9697530B21e",
+    tiers: [100, 500, 3000, 10000],
+  },
+  {
+    id: "arbitrum/camelot",
+    chain: "arbitrum",
+    label: "Camelot V3",
+    kind: "algebra",
+    quoter: "0x0Fc73040b26E9bC8514fA028D998E73A254Fa76E",
+    tiers: [0],
+  },
+  {
+    id: "arbitrum/pcs",
+    chain: "arbitrum",
+    label: "PancakeSwap V3",
+    kind: "univ3",
+    quoter: "0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997",
+    tiers: [100, 500, 2500, 10000],
+  },
+  {
+    id: "arbitrum/sushi",
+    chain: "arbitrum",
+    label: "Sushi V3",
+    kind: "univ3",
+    quoter: "0x0524E833cCD057e4d7A296e3aaAb9f7675964Ce1",
+    tiers: [100, 500, 3000, 10000],
+  },
+  {
+    id: "arbitrum/v4",
+    chain: "arbitrum",
+    label: "Uniswap V4",
+    kind: "univ4",
+    quoter: "0x3972C00f7ed4885e145823eb7C655375d275A1C5",
+    tiers: [100, 500, 3000, 10000],
+  },
+];
+
+// SPREAD_DEXES=base/uni,base/aero,... to narrow. Default all.
+const dexFilter = (process.env.SPREAD_DEXES ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+export const DEXES: DexConfig[] = dexFilter.length
+  ? ALL_DEXES.filter((d) => dexFilter.includes(d.id))
+  : ALL_DEXES;
 
 export interface PairConfig {
   pair: string; // base asset label
   tokens: Record<string, EvmToken>; // per chain name
   cex: Record<string, string>; // per venue: native symbol
+  maxGrossBps?: number; // override of MAX_GROSS_BPS for thin pairs
 }
 
 // Coinbase unified its USD and USDC books in 2023 and delisted the *-USDC
 // products; USD↔USDC conversion there is 1:1 and free, so the *-USD book IS
 // the USDC book. OKX and Binance quote USDC natively.
 //
-// Addresses verified against the canonical deployments (Base WETH predeploy,
-// Coinbase cbBTC, Arbitrum WETH/WBTC bridge tokens). NB: cbBTC/WBTC trade
-// against spot BTC on the CEX leg — redemption to native BTC is 1:1 but is a
-// separate step with its own queue, so a BTC "spread" here is also a wrapper
-// basis. ETH is the clean one.
-export const PAIRS: PairConfig[] = [
+// Addresses verified against the canonical deployments by reading symbol()
+// and decimals() on chain (2026-11-02). NB: cbBTC/WBTC trade against spot
+// BTC on the CEX leg — redemption to native BTC is 1:1 but is a separate
+// step with its own queue, so a BTC "spread" here is also a wrapper basis.
+// ETH is the clean one.
+//
+// Mid-caps are where retail CEX↔DEX arb actually happens: thin pools, CEX
+// books that lag. Every pair needs at least one CEX listing (the CEX mid is
+// the reference price the DEX quotes are sized off). A pair with no pool on
+// a DEX simply yields no quotes there.
+const ALL_PAIRS: PairConfig[] = [
   {
     pair: "ETH",
     tokens: {
-      base: {
-        symbol: "WETH",
-        address: "0x4200000000000000000000000000000000000006",
-        decimals: 18,
-      },
-      arbitrum: {
-        symbol: "WETH",
-        address: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
-        decimals: 18,
-      },
+      base: { symbol: "WETH", address: "0x4200000000000000000000000000000000000006", decimals: 18 },
+      arbitrum: { symbol: "WETH", address: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1", decimals: 18 },
     },
     cex: { coinbase: "ETH-USD", okx: "ETH-USDC", binance: "ETHUSDC" },
   },
   {
     pair: "BTC",
     tokens: {
-      base: {
-        symbol: "cbBTC",
-        address: "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
-        decimals: 8,
-      },
-      arbitrum: {
-        symbol: "WBTC",
-        address: "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
-        decimals: 8,
-      },
+      base: { symbol: "cbBTC", address: "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf", decimals: 8 },
+      arbitrum: { symbol: "WBTC", address: "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f", decimals: 8 },
     },
     cex: { coinbase: "BTC-USD", okx: "BTC-USDC", binance: "BTCUSDC" },
   },
+  // ---- Base mid-caps ----
+  {
+    pair: "AERO",
+    tokens: {
+      base: { symbol: "AERO", address: "0x940181a94A35A4569E4529A3CDfB74e38FD98631", decimals: 18 },
+    },
+    cex: { coinbase: "AERO-USD" },
+    maxGrossBps: 1000,
+  },
+  {
+    pair: "VIRTUAL",
+    tokens: {
+      base: { symbol: "VIRTUAL", address: "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b", decimals: 18 },
+    },
+    cex: { coinbase: "VIRTUAL-USD", okx: "VIRTUAL-USDC" },
+    maxGrossBps: 1000,
+  },
+  {
+    pair: "DEGEN",
+    tokens: {
+      base: { symbol: "DEGEN", address: "0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed", decimals: 18 },
+    },
+    cex: { coinbase: "DEGEN-USD", okx: "DEGEN-USDC" },
+    maxGrossBps: 1000,
+  },
+  // ---- Arbitrum mid-caps ----
+  {
+    pair: "ARB",
+    tokens: {
+      arbitrum: { symbol: "ARB", address: "0x912CE59144191C1204E64559FE8253a0e49E6548", decimals: 18 },
+    },
+    cex: { coinbase: "ARB-USD", okx: "ARB-USDC" },
+    maxGrossBps: 1000,
+  },
+  {
+    pair: "LINK",
+    tokens: {
+      arbitrum: { symbol: "LINK", address: "0xf97f4df75117a78c1A5a0DBb814Af92458539FB4", decimals: 18 },
+    },
+    cex: { coinbase: "LINK-USD", okx: "LINK-USDC" },
+    maxGrossBps: 1000,
+  },
+  {
+    pair: "PENDLE",
+    tokens: {
+      arbitrum: { symbol: "PENDLE", address: "0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8", decimals: 18 },
+    },
+    cex: { coinbase: "PENDLE-USD", okx: "PENDLE-USDC" },
+    maxGrossBps: 1000,
+  },
+  {
+    pair: "UNI",
+    tokens: {
+      arbitrum: { symbol: "UNI", address: "0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0", decimals: 18 },
+    },
+    cex: { coinbase: "UNI-USD", okx: "UNI-USDC" },
+    maxGrossBps: 1000,
+  },
 ];
 
+// SPREAD_PAIRS=ETH,BTC to narrow. Default all.
+const pairFilter = (process.env.SPREAD_PAIRS ?? "")
+  .split(",")
+  .map((s) => s.trim().toUpperCase())
+  .filter(Boolean);
+export const PAIRS: PairConfig[] = pairFilter.length
+  ? ALL_PAIRS.filter((p) => pairFilter.includes(p.pair))
+  : ALL_PAIRS;
+
 // ---- inventory rebalance ----
-// After a clip you're long the asset on one venue and long USDC on the other.
-// Re-arming means a CEX withdrawal + on-chain deposit (or waiting for the
-// spread to flip). Modelled as a fixed cost paid once per N clips.
+// After a non-atomic clip you're long the asset on one venue and long USDC
+// on the other. Re-arming means a withdrawal + deposit (or waiting for the
+// spread to flip). Modelled as a fixed cost paid once per N clips. dex→dex
+// is atomic and pays none of this.
 export const REBALANCE_FIXED_USD = Number(process.env.SPREAD_REBALANCE_USD ?? 3);
 export const CLIPS_PER_REBALANCE = Number(process.env.SPREAD_CLIPS_PER_REBALANCE ?? 10);
 
+// Atomic dex→dex clips compete in the builder auction: whatever you don't
+// tip, someone else will. Modelled as a flat bps haircut, default 0 so the
+// board shows the raw gap; set it to what the winning bundles actually pay.
+export const ATOMIC_TIP_BPS = Number(process.env.SPREAD_ATOMIC_TIP_BPS ?? 0);
+
 export const CHAIN_NAMES = CHAINS.map((c) => c.name);
+export const DEX_IDS = DEXES.map((d) => d.id);

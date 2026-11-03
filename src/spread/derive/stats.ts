@@ -1,4 +1,5 @@
 import type { Store } from "../store.js";
+import type { Kind } from "../types.js";
 
 // Per-route deployment stats over a window: how often is the route positive,
 // how fat is the tail, does it recur, and how long does it last. This is the
@@ -6,6 +7,8 @@ import type { Store } from "../store.js";
 
 export interface RouteStats {
   route: string;
+  pair: string;
+  kind: Kind;
   ticks: number;
   positiveShare: number; // fraction of ticks with net > 0
   p50Bps: number | null;
@@ -28,8 +31,10 @@ export function routeStats(store: Store, days: number, size: number): RouteStats
   const since = Date.now() - days * 86_400_000;
   const cells = store.cellsSince(since, size);
   const byRoute = new Map<string, number[]>();
+  const meta = new Map<string, { pair: string; kind: Kind }>();
   const current = new Map<string, { ts: number; netBps: number }>();
   for (const c of cells) {
+    if (!meta.has(c.route)) meta.set(c.route, { pair: c.pair, kind: c.kind });
     (byRoute.get(c.route) ?? byRoute.set(c.route, []).get(c.route)!).push(c.netBps);
     const cur = current.get(c.route);
     if (!cur || c.ts > cur.ts || (c.ts === cur.ts && c.netBps > cur.netBps))
@@ -46,8 +51,11 @@ export function routeStats(store: Store, days: number, size: number): RouteStats
     const durs = eps
       .map((e) => ((e.closedTs ?? e.lastTs) - e.openedTs) / 1000)
       .sort((a, b) => a - b);
+    const m = meta.get(route) ?? { pair: route.slice(0, route.indexOf(" ")), kind: "dex→cex" as Kind };
     return {
       route,
+      pair: m.pair,
+      kind: m.kind,
       ticks: nets.length,
       positiveShare: nets.length ? nets.filter((n) => n > 0).length / nets.length : 0,
       p50Bps: quantile(nets, 0.5),
