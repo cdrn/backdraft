@@ -1,7 +1,19 @@
 import Database from "better-sqlite3";
 import type { Episode } from "./derive/episodes.js";
 import type { PaperEntry, PaperStats } from "./derive/paper.js";
-import type { Book, Cell, DexQuote } from "./types.js";
+import type { Book, Cell, DexQuote, Kind } from "./types.js";
+
+export interface RouteAgg {
+  route: string;
+  pair: string;
+  kind: Kind;
+  ticks: number;
+  positiveShare: number;
+  p50Bps: number;
+  p90Bps: number;
+  maxBps: number;
+  currentNetBps: number;
+}
 
 // Raw books + raw DEX quotes are the source of truth; cells, episodes and
 // paper entries are derived and can be rebuilt (npm run spread:backfill).
@@ -215,6 +227,29 @@ export class Store {
             .all(ts, size)
     ) as Record<string, unknown>[];
     return rows.map((r) => this.rowToCell(r));
+  }
+
+  // Per-route aggregates at one size over a window, computed in SQLite.
+  // Never materialise the window's cells in JS: a week at $5k is millions of
+  // rows and the 1 GB box cannot hold them as objects.
+  routeAgg(sinceTs: number, size: number): RouteAgg[] {
+    return this.db
+      .prepare(
+        `WITH w AS (
+           SELECT route, pair, kind, net_bps,
+                  ROW_NUMBER() OVER (PARTITION BY route ORDER BY net_bps) AS rn,
+                  COUNT(*) OVER (PARTITION BY route) AS n,
+                  ROW_NUMBER() OVER (PARTITION BY route ORDER BY ts DESC, net_bps DESC) AS recency
+           FROM cells WHERE ts >= ? AND size = ?)
+         SELECT route, MIN(pair) AS pair, MIN(kind) AS kind, MAX(n) AS ticks,
+                SUM(net_bps > 0) * 1.0 / MAX(n) AS positiveShare,
+                MAX(CASE WHEN rn = MIN(n, CAST(0.5 * n AS INTEGER) + 1) THEN net_bps END) AS p50Bps,
+                MAX(CASE WHEN rn = MIN(n, CAST(0.9 * n AS INTEGER) + 1) THEN net_bps END) AS p90Bps,
+                MAX(net_bps) AS maxBps,
+                MAX(CASE WHEN recency = 1 THEN net_bps END) AS currentNetBps
+         FROM w GROUP BY route`,
+      )
+      .all(sinceTs, size) as RouteAgg[];
   }
 
   // Per-route net series at one size: best net per tick.

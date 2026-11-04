@@ -29,39 +29,28 @@ function quantile(sorted: number[], q: number): number | null {
 
 export function routeStats(store: Store, days: number, size: number): RouteStats[] {
   const since = Date.now() - days * 86_400_000;
-  const cells = store.cellsSince(since, size);
-  const byRoute = new Map<string, number[]>();
-  const meta = new Map<string, { pair: string; kind: Kind }>();
-  const current = new Map<string, { ts: number; netBps: number }>();
-  for (const c of cells) {
-    if (!meta.has(c.route)) meta.set(c.route, { pair: c.pair, kind: c.kind });
-    (byRoute.get(c.route) ?? byRoute.set(c.route, []).get(c.route)!).push(c.netBps);
-    const cur = current.get(c.route);
-    if (!cur || c.ts > cur.ts || (c.ts === cur.ts && c.netBps > cur.netBps))
-      current.set(c.route, { ts: c.ts, netBps: c.netBps });
-  }
+  const agg = new Map(store.routeAgg(since, size).map((a) => [a.route, a]));
   const episodes = store.episodesSince(since);
   const epByRoute = new Map<string, typeof episodes>();
   for (const ep of episodes) (epByRoute.get(ep.route) ?? epByRoute.set(ep.route, []).get(ep.route)!).push(ep);
 
-  const routes = new Set([...byRoute.keys(), ...epByRoute.keys()]);
+  const routes = new Set([...agg.keys(), ...epByRoute.keys()]);
   return [...routes].map((route) => {
-    const nets = (byRoute.get(route) ?? []).slice().sort((a, b) => a - b);
+    const a = agg.get(route);
     const eps = epByRoute.get(route) ?? [];
     const durs = eps
       .map((e) => ((e.closedTs ?? e.lastTs) - e.openedTs) / 1000)
-      .sort((a, b) => a - b);
-    const m = meta.get(route) ?? { pair: route.slice(0, route.indexOf(" ")), kind: "dex→cex" as Kind };
+      .sort((x, y) => x - y);
     return {
       route,
-      pair: m.pair,
-      kind: m.kind,
-      ticks: nets.length,
-      positiveShare: nets.length ? nets.filter((n) => n > 0).length / nets.length : 0,
-      p50Bps: quantile(nets, 0.5),
-      p90Bps: quantile(nets, 0.9),
-      maxBps: nets.length ? nets[nets.length - 1] : null,
-      currentNetBps: current.get(route)?.netBps ?? null,
+      pair: a?.pair ?? route.slice(0, route.indexOf(" ")),
+      kind: a?.kind ?? ("dex→cex" as Kind),
+      ticks: a?.ticks ?? 0,
+      positiveShare: a?.positiveShare ?? 0,
+      p50Bps: a?.p50Bps ?? null,
+      p90Bps: a?.p90Bps ?? null,
+      maxBps: a?.maxBps ?? null,
+      currentNetBps: a?.currentNetBps ?? null,
       episodes: eps.length,
       openNow: eps.some((e) => e.closedTs === null),
       medianDurationSec: quantile(durs, 0.5),

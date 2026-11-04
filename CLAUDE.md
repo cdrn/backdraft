@@ -28,6 +28,7 @@ The scanner/executor/honeypot-detector that this repo started as is retired (`ar
 - Spread pool discovery runs on the first tick (and hourly) and takes ~20s; that one tick overruns the 10s poll by design
 - A mid-cap with no cells (DEGEN at $5k) is a pair whose impact exceeds `maxGrossBps`, not a missing pool
 - A persistently positive CEX↔DEX route on one pair is a broken bridge, not an arb, until proven otherwise. AERO's Nov 2026 contract migration read as +250 bps for hours because the old contract kept trading on chain while CEXes priced the new one. Check for token migrations / halted deposits before believing a green cell
+- The box has 1 GB and no swap. Anything that materialises a window of raw rows or cells in JS (a backfill, a stats endpoint) OOMs it and takes SSH down for minutes. Stream ticks, aggregate in SQLite
 - `.scratch/` is gitignored; put ad-hoc scripts there (tsx resolves node_modules from the script's directory)
 
 ## Deployment
