@@ -229,6 +229,16 @@ export class Store {
     return rows.map((r) => this.rowToCell(r));
   }
 
+  // Retention. Freed pages are reused by SQLite; the file never shrinks
+  // without a VACUUM, which needs the new size free on disk.
+  prune(beforeTs: number): { books: number; quotes: number; cells: number } {
+    return {
+      books: this.db.prepare(`DELETE FROM books WHERE ts < ?`).run(beforeTs).changes,
+      quotes: this.db.prepare(`DELETE FROM dex_quotes WHERE ts < ?`).run(beforeTs).changes,
+      cells: this.db.prepare(`DELETE FROM cells WHERE ts < ?`).run(beforeTs).changes,
+    };
+  }
+
   // Per-route aggregates at one size over a window, computed in SQLite.
   // Never materialise the window's cells in JS: a week at $5k is millions of
   // rows and the 1 GB box cannot hold them as objects.

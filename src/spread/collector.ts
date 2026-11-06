@@ -8,10 +8,11 @@ import {
   LATENCY_MS,
   PAIRS,
   POLL_INTERVAL_MS,
+  RETENTION_DAYS,
   ROUTE_KINDS,
   SIZES_USD,
 } from "./config.js";
-import { mid } from "./derive/book.js";
+import { mid, trimLevels } from "./derive/book.js";
 import { EpisodeDetector } from "./derive/episodes.js";
 import { PaperLedger } from "./derive/paper.js";
 import { bestPerRoute, computeCells } from "./derive/spreads.js";
@@ -33,6 +34,9 @@ export interface VenueHealth {
 }
 
 const REDISCOVER_MS = 60 * 60_000;
+const PRUNE_MS = 60 * 60_000;
+// store only the depth a clip can walk: twice the largest size, ≥20 levels
+const BOOK_USD_CAP = 2 * Math.max(...SIZES_USD);
 
 export class Collector {
   private venues = buildVenues(CEX_VENUES);
@@ -45,6 +49,7 @@ export class Collector {
   readonly dexQuoteCounts = new Map<string, number>();
   private running = false;
   private startedAt = 0;
+  private prunedAt = 0;
 
   constructor(private store: Store) {
     this.detector = new EpisodeDetector(store, EPISODE_OPEN_BPS, EPISODE_CLOSE_BPS, {
@@ -90,7 +95,8 @@ export class Collector {
     const failed = new Set<string>();
     settled.forEach((r, i) => {
       if (r.status === "fulfilled") {
-        if (r.value) books.push(r.value);
+        if (r.value)
+          books.push({ ...r.value, bids: trimLevels(r.value.bids, BOOK_USD_CAP), asks: trimLevels(r.value.asks, BOOK_USD_CAP) });
       } else {
         failed.add(owners[i]);
         this.mark(owners[i], r.reason);
@@ -112,6 +118,13 @@ export class Collector {
       if (r.status === "fulfilled") console.log(`[spread] ${q.chain} pools: ${q.liveSummary() || "none"}`);
       else console.warn(`[spread] ${q.chain} discovery failed: ${r.reason instanceof Error ? r.reason.message : r.reason}`);
     });
+  }
+
+  private maybePrune(): void {
+    if (Date.now() - this.prunedAt < PRUNE_MS) return;
+    this.prunedAt = Date.now();
+    const n = this.store.prune(Date.now() - RETENTION_DAYS * 86_400_000);
+    if (n.books || n.quotes || n.cells) console.log(`[spread] pruned >${RETENTION_DAYS}d: ${n.books} books ${n.quotes} quotes ${n.cells} cells`);
   }
 
   private async fetchQuotes(books: Book[]): Promise<DexQuote[]> {
@@ -166,6 +179,7 @@ export class Collector {
       this.store.insertTick(books, quotes, cells);
       this.detector.update(cells, ts);
       this.paper.update(cells, ts);
+      this.maybePrune();
       const best = [...bestPerRoute(cells).values()].sort((a, b) => b.netBps - a.netBps);
       const top = best.slice(0, 3).map((c) => `${c.route} ${c.netBps >= 0 ? "+" : ""}${c.netBps.toFixed(1)}`).join("  ");
       console.log(`[spread] ${books.length} books  ${quotes.length} quotes  ${cells.length} cells  best: ${top || "—"}`);

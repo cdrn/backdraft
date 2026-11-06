@@ -1,7 +1,8 @@
 import type { Book, SpotVenue } from "../types.js";
 
-// Coinbase Exchange public order book, level 2 = top 50 aggregated levels.
-// Keyless. Deep enough for the $5k–$100k clips we track on ETH/BTC.
+// Coinbase Exchange public order book. Level 2 is the FULL aggregated book
+// (no size parameter; ~100 KB per pull) — the collector trims it before
+// storing. Keyless.
 export class CoinbaseVenue implements SpotVenue {
   name = "coinbase";
 
