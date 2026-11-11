@@ -12,7 +12,7 @@ export interface RouteAgg {
   p50Bps: number;
   p90Bps: number;
   maxBps: number;
-  currentNetBps: number;
+  currentNetBps: number | null;
 }
 
 // Raw books + raw DEX quotes are the source of truth; cells, episodes and
@@ -23,6 +23,8 @@ export class Store {
   private insBook: Database.Statement;
   private insQuote: Database.Statement;
   private insCell: Database.Statement;
+  private upHour: Database.Statement;
+  private upHist: Database.Statement;
 
   constructor(path: string) {
     this.db = new Database(path);
@@ -73,6 +75,19 @@ export class Store {
       );
       CREATE INDEX IF NOT EXISTS idx_cells_ts ON cells(ts);
       CREATE INDEX IF NOT EXISTS idx_cells_route_size_ts ON cells(route, size, ts);
+      -- Hourly rollups of cells, maintained on insert. Stats read these, never
+      -- the cells table: a week of cells is ~8M rows and the box has 1 GB.
+      CREATE TABLE IF NOT EXISTS cell_hour (
+        route TEXT NOT NULL, size REAL NOT NULL, hour INTEGER NOT NULL,
+        pair TEXT NOT NULL, kind TEXT NOT NULL,
+        n INTEGER NOT NULL, pos INTEGER NOT NULL, max_bps REAL NOT NULL,
+        PRIMARY KEY (route, size, hour)
+      ) WITHOUT ROWID;
+      CREATE TABLE IF NOT EXISTS cell_hist (
+        route TEXT NOT NULL, size REAL NOT NULL, hour INTEGER NOT NULL, bucket INTEGER NOT NULL,
+        n INTEGER NOT NULL,
+        PRIMARY KEY (route, size, hour, bucket)
+      ) WITHOUT ROWID;
       CREATE TABLE IF NOT EXISTS episodes (
         id INTEGER PRIMARY KEY,
         route TEXT NOT NULL,
@@ -97,12 +112,21 @@ export class Store {
       );
       CREATE INDEX IF NOT EXISTS idx_paper_settled ON paper_entries(settled_ts);
     `);
+    this.ensureRollups();
     this.insBook = this.db.prepare(
       `INSERT INTO books (ts, venue, symbol, bids, asks) VALUES (?, ?, ?, ?, ?)`,
     );
     this.insQuote = this.db.prepare(
       `INSERT INTO dex_quotes (ts, chain, dex, pair, dir, amount_in, amount_out, fee_tier)
        VALUES (@ts, @chain, @dex, @pair, @dir, @amountIn, @amountOut, @feeTier)`,
+    );
+    this.upHour = this.db.prepare(
+      `INSERT INTO cell_hour (route, size, hour, pair, kind, n, pos, max_bps) VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+       ON CONFLICT DO UPDATE SET n = n + 1, pos = pos + excluded.pos, max_bps = MAX(max_bps, excluded.max_bps)`,
+    );
+    this.upHist = this.db.prepare(
+      `INSERT INTO cell_hist (route, size, hour, bucket, n) VALUES (?, ?, ?, ?, 1)
+       ON CONFLICT DO UPDATE SET n = n + 1`,
     );
     this.insCell = this.db.prepare(
       `INSERT INTO cells (ts, pair, kind, buy, sell, route, size, buy_px, sell_px,
@@ -130,23 +154,56 @@ export class Store {
     }
   }
 
+  // Rollups are derived; an older DB has cells but no rollups.
+  private ensureRollups(): void {
+    const hasRollup = (this.db.prepare(`SELECT 1 FROM cell_hour LIMIT 1`).get() as unknown) !== undefined;
+    const hasCells = (this.db.prepare(`SELECT 1 FROM cells LIMIT 1`).get() as unknown) !== undefined;
+    if (hasCells && !hasRollup) {
+      console.log("[spread:store] building hourly rollups from cells (one-off, minutes on a small box)");
+      const t = Date.now();
+      this.rebuildRollups();
+      console.log(`[spread:store] rollups built in ${Math.round((Date.now() - t) / 1000)}s`);
+    }
+  }
+
+  private static HOUR_MS = 3_600_000;
+  // floor(net_bps) in SQL (CAST truncates toward zero)
+  private static BUCKET_SQL = "CAST(net_bps AS INTEGER) - (net_bps < CAST(net_bps AS INTEGER))";
+
+  rebuildRollups(): void {
+    this.db.exec(`
+      DELETE FROM cell_hour; DELETE FROM cell_hist;
+      INSERT INTO cell_hour SELECT route, size, ts / ${Store.HOUR_MS}, MIN(pair), MIN(kind), COUNT(*), SUM(net_bps > 0), MAX(net_bps)
+        FROM cells GROUP BY route, size, ts / ${Store.HOUR_MS};
+      INSERT INTO cell_hist SELECT route, size, ts / ${Store.HOUR_MS}, ${Store.BUCKET_SQL}, COUNT(*)
+        FROM cells GROUP BY route, size, ts / ${Store.HOUR_MS}, ${Store.BUCKET_SQL};
+    `);
+  }
+
+  private addCell(c: Cell): void {
+    this.insCell.run(c);
+    const hour = Math.floor(c.ts / Store.HOUR_MS);
+    this.upHour.run(c.route, c.size, hour, c.pair, c.kind, c.netBps > 0 ? 1 : 0, c.netBps);
+    this.upHist.run(c.route, c.size, hour, Math.floor(c.netBps));
+  }
+
   insertTick(books: Book[], quotes: DexQuote[], cells: Cell[]): void {
     this.db.transaction(() => {
       for (const b of books)
         this.insBook.run(b.ts, b.venue, b.symbol, JSON.stringify(b.bids), JSON.stringify(b.asks));
       for (const q of quotes) this.insQuote.run(q);
-      for (const c of cells) this.insCell.run(c);
+      for (const c of cells) this.addCell(c);
     })();
   }
 
   insertCells(cells: Cell[]): void {
     this.db.transaction(() => {
-      for (const c of cells) this.insCell.run(c);
+      for (const c of cells) this.addCell(c);
     })();
   }
 
   clearCells(): void {
-    this.db.exec(`DELETE FROM cells`);
+    this.db.exec(`DELETE FROM cells; DELETE FROM cell_hour; DELETE FROM cell_hist`);
   }
 
   // ---- raw replay ----
@@ -231,7 +288,10 @@ export class Store {
 
   // Retention. Freed pages are reused by SQLite; the file never shrinks
   // without a VACUUM, which needs the new size free on disk.
-  prune(beforeTs: number): { books: number; quotes: number; cells: number } {
+  prune(beforeTs: number, rollupBeforeTs: number): { books: number; quotes: number; cells: number } {
+    const h = Math.floor(rollupBeforeTs / Store.HOUR_MS);
+    this.db.prepare(`DELETE FROM cell_hour WHERE hour < ?`).run(h);
+    this.db.prepare(`DELETE FROM cell_hist WHERE hour < ?`).run(h);
     return {
       books: this.db.prepare(`DELETE FROM books WHERE ts < ?`).run(beforeTs).changes,
       quotes: this.db.prepare(`DELETE FROM dex_quotes WHERE ts < ?`).run(beforeTs).changes,
@@ -239,27 +299,56 @@ export class Store {
     };
   }
 
-  // Per-route aggregates at one size over a window, computed in SQLite.
-  // Never materialise the window's cells in JS: a week at $5k is millions of
-  // rows and the 1 GB box cannot hold them as objects.
+  // Per-route aggregates at one size over a window, from the hourly rollups.
+  // Quantiles come from 1-bps histogram buckets (bucket midpoint), which is
+  // all the dashboard needs and keeps a 30-day window at a few ms.
   routeAgg(sinceTs: number, size: number): RouteAgg[] {
-    return this.db
+    const fromHour = Math.floor(sinceTs / Store.HOUR_MS);
+    const hours = this.db
       .prepare(
-        `WITH w AS (
-           SELECT route, pair, kind, net_bps,
-                  ROW_NUMBER() OVER (PARTITION BY route ORDER BY net_bps) AS rn,
-                  COUNT(*) OVER (PARTITION BY route) AS n,
-                  ROW_NUMBER() OVER (PARTITION BY route ORDER BY ts DESC, net_bps DESC) AS recency
-           FROM cells WHERE ts >= ? AND size = ?)
-         SELECT route, MIN(pair) AS pair, MIN(kind) AS kind, MAX(n) AS ticks,
-                SUM(net_bps > 0) * 1.0 / MAX(n) AS positiveShare,
-                MAX(CASE WHEN rn = MIN(n, CAST(0.5 * n AS INTEGER) + 1) THEN net_bps END) AS p50Bps,
-                MAX(CASE WHEN rn = MIN(n, CAST(0.9 * n AS INTEGER) + 1) THEN net_bps END) AS p90Bps,
-                MAX(net_bps) AS maxBps,
-                MAX(CASE WHEN recency = 1 THEN net_bps END) AS currentNetBps
-         FROM w GROUP BY route`,
+        `SELECT route, MIN(pair) AS pair, MIN(kind) AS kind, SUM(n) AS ticks, SUM(pos) AS pos, MAX(max_bps) AS maxBps
+         FROM cell_hour WHERE hour >= ? AND size = ? GROUP BY route`,
       )
-      .all(sinceTs, size) as RouteAgg[];
+      .all(fromHour, size) as { route: string; pair: string; kind: Kind; ticks: number; pos: number; maxBps: number }[];
+    const hist = this.db
+      .prepare(
+        `SELECT route, bucket, SUM(n) AS n FROM cell_hist WHERE hour >= ? AND size = ?
+         GROUP BY route, bucket ORDER BY route, bucket`,
+      )
+      .all(fromHour, size) as { route: string; bucket: number; n: number }[];
+    const byRoute = new Map<string, { bucket: number; n: number }[]>();
+    for (const h of hist) (byRoute.get(h.route) ?? byRoute.set(h.route, []).get(h.route)!).push(h);
+    const quantile = (route: string, total: number, q: number): number => {
+      const target = Math.min(total - 1, Math.floor(q * total));
+      let seen = 0;
+      for (const b of byRoute.get(route) ?? []) {
+        seen += b.n;
+        if (seen > target) return b.bucket + 0.5;
+      }
+      return NaN;
+    };
+    const latest = this.db.prepare(`SELECT MAX(ts) AS ts FROM cells WHERE size = ?`).get(size) as { ts: number | null };
+    const current = new Map(
+      latest.ts === null
+        ? []
+        : (
+            this.db.prepare(`SELECT route, MAX(net_bps) AS netBps FROM cells WHERE ts = ? AND size = ? GROUP BY route`).all(latest.ts, size) as {
+              route: string;
+              netBps: number;
+            }[]
+          ).map((r) => [r.route, r.netBps]),
+    );
+    return hours.map((h) => ({
+      route: h.route,
+      pair: h.pair,
+      kind: h.kind,
+      ticks: h.ticks,
+      positiveShare: h.ticks ? h.pos / h.ticks : 0,
+      p50Bps: quantile(h.route, h.ticks, 0.5),
+      p90Bps: quantile(h.route, h.ticks, 0.9),
+      maxBps: h.maxBps,
+      currentNetBps: current.get(h.route) ?? null,
+    }));
   }
 
   // Per-route net series at one size: best net per tick.

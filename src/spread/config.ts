@@ -16,9 +16,12 @@
 import { arbitrum, base, type Chain } from "viem/chains";
 import { KINDS, type Kind } from "./types.js";
 
-// Raw rows (books, quotes) and cells older than this are pruned hourly.
-// Episodes and paper entries are kept. ~450 MB/day at the default venue set.
-export const RETENTION_DAYS = Number(process.env.SPREAD_RETENTION_DAYS ?? 21);
+// Raw rows (books, quotes) and cells older than this are pruned hourly;
+// ~1.2 GB/day at the default venue set, so 10 days ≈ 12 GB on the 24 GB box.
+// Hourly rollups (what the stats read), episodes and paper entries are kept
+// for ROLLUP_RETENTION_DAYS.
+export const RETENTION_DAYS = Number(process.env.SPREAD_RETENTION_DAYS ?? 10);
+export const ROLLUP_RETENTION_DAYS = Number(process.env.SPREAD_ROLLUP_RETENTION_DAYS ?? 365);
 export const DB_PATH = process.env.SPREAD_DB_PATH ?? "spread.db";
 export const PORT = Number(process.env.SPREAD_PORT ?? 4750);
 export const PUBLIC_DIR = process.env.SPREAD_PUBLIC_DIR ?? "public/spread";

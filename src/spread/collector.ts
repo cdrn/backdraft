@@ -9,6 +9,7 @@ import {
   PAIRS,
   POLL_INTERVAL_MS,
   RETENTION_DAYS,
+  ROLLUP_RETENTION_DAYS,
   ROUTE_KINDS,
   SIZES_USD,
 } from "./config.js";
@@ -123,7 +124,7 @@ export class Collector {
   private maybePrune(): void {
     if (Date.now() - this.prunedAt < PRUNE_MS) return;
     this.prunedAt = Date.now();
-    const n = this.store.prune(Date.now() - RETENTION_DAYS * 86_400_000);
+    const n = this.store.prune(Date.now() - RETENTION_DAYS * 86_400_000, Date.now() - ROLLUP_RETENTION_DAYS * 86_400_000);
     if (n.books || n.quotes || n.cells) console.log(`[spread] pruned >${RETENTION_DAYS}d: ${n.books} books ${n.quotes} quotes ${n.cells} cells`);
   }
 
